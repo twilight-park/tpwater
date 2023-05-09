@@ -1,0 +1,123 @@
+PI=water-plant
+
+	ssh-auth $PI
+
+#Find the cell interface
+
+	cellif=$(route -n | awk '/usb|enx/ { print $x }'
+	cellgw=$(route -n | awk '/usb|enx/ { print $y }'
+
+	exit
+
+#Delete the default gateway through the cell card
+
+	sudo route delete default gw $cellgw $cellif
+
+Network & Firewall
+	sudo apt install ifmetric
+	sudo apt install iptables-persistent
+
+	# traceroute fails because ports are blocked
+	sudo apt install traceroute
+
+	Add to /etc/rc.local
+	    /home/john/tpwater/routes up
+
+
+
+edit sudoers
+
+	sudo apt install screen
+	sudo apt install tcl-dev
+	sudo apt install tcl8.6-tdbc-sqlite3 
+
+	sudo apt install fossil
+ 	fossil clone http://chiselapp.com/user/schelte/repository/piio
+	sudo apt install tcl-dev libi2c-dev autoconf
+	autoconf
+	./configure --prefix=$HOME/lib/tcl8 --exec_prefix=$HOME/lib/tcl8
+	make
+	make install
+
+qmi:
+	sudo apt-get update && sudo apt-get install libqmi-utils udhcpc
+
+	# Turn Radio on - not necessary?
+	sudo qmicli -d /dev/cdc-wdm0 --dms-set-operating-mode='online'
+
+	# Check Radio On
+	sudo qmicli -d /dev/cdc-wdm0 --dms-get-operating-mode
+	sudo qmicli -d /dev/cdc-wdm0 --nas-get-signal-strength
+	sudo qmicli -d /dev/cdc-wdm0 --nas-get-home-network
+
+	sudo qmicli -d /dev/cdc-wdm0 -w		# this confirms the name of the network interface, typically wwan0
+	sudo ip link set wwan0 down		# change the wwan0 to the one returned above if different
+	echo 'Y' | sudo tee /sys/class/net/wwan0/qmi/raw_ip
+	sudo ip link set wwan0 up
+
+	# Start network -- Running this once might have set the APN?
+	#
+	sudo qmicli -p -d /dev/cdc-wdm0 			\
+	    --device-open-net='net-raw-ip|net-no-qos-header' 	\
+	    --wds-start-network="apn='simbase',ip-type=4" --client-no-release-cid
+	sudo udhcpc -i wwan0
+
+
+
+	screen /dev/ttyUSB2 115200
+	
+Serail Number 	AT+CGSN
+
+Set APN		AT+CGDCONT=1,"IP","simbase","0.0.0.0",0,0
+		AT+CGDCONT=?
+		AT+CGDCONT=1,"IP","simbase"
+		AT+CGDCONT=1,"IPV4V6","simbase"
+		AT+CGDCONT=6,"IPV4V6","simbase"
+Reset		AT+CRESET
+
+
+Status:
+		AT+CPIN?
+		AT+COPS?
+		AT+CREG?
+		AT+CPSI?
+
+RNDIS : 	AT+CUSBPIDSWITCH=9011,1,1
+	back:
+		AT+CUSBPIDSWITCH=9001,1,1
+
+	
+	ping -I usb0 www.baidu.com
+	sudo route add -net 0.0.0.0 usb0
+
+
+i2c
+	sudo mv /boot/dtb/amlogic/overlay/meson-i2cB.dtbo .
+	sudo mv /boot/dtb/amlogic/overlay/meson-i2cA.dtbo .
+	reboot
+		
+    sudo i2cdetect -y 1
+	 0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
+    00:                         -- -- -- -- -- -- -- --
+    10: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+    20: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+    30: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+    40: -- -- -- -- -- -- -- -- 48 -- -- -- -- -- -- --
+    50: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+    60: -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+    70: -- -- -- -- -- -- -- --
+
+i2c Python
+
+	sudo apt-get install build-essential libi2c-dev i2c-tools python-dev libffi-dev
+	sudo apt install pip
+	pip install cffi
+	pip install smbus-cffi
+
+	get clone
+	python3 Example...
+
+
+To Try:
+	armbian-add-overlay i2c-b.dts
+

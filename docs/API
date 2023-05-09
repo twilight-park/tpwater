@@ -1,0 +1,27 @@
+<pre>
+The data log of water flow values can be queried using an HTTP endpoint that
+returns a JSON list of [timestamp, flowrate] pairs for the time period
+requested.
+
+  http://data.rkroll.com:7777/query/log/start/end
+
+ The start and end values are UNIX timestamp seconds and are used to filter the
+ database query.  The start may be specified as a negative number to query
+ relative to the current time.  The end value is optional and defaults to now.
+
+ To query for the last hour of data:
+
+  http://data.rkroll.com:7777/query/log/-3600
+ 
+ Start may also be specified with units suffixed to the relative value.
+
+  - m minutes
+  - h hours
+  - d days
+  - w week
+  - y year
+
+ To query for the last day of data:
+
+  http://data.rkroll.com:7777/query/log/-1d
+</pre>

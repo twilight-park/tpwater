@@ -1,0 +1,2 @@
+*/2 * * * * /home/john/tpwater/tp-msg.sh   start
+45   2 * * * /home/john/tpwater/tp-msg.sh restart

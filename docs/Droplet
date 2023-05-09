@@ -1,0 +1,18 @@
+<pre>
+sudo apt update
+sudo apt install mosh
+sudo apt install tcl
+sudo apt install tcl8.6-tdbc-sqlite3
+sudo apt install net-tools
+sudo apt install make
+
+sudo apt autoremove
+
+mkdir src
+cd src
+git clone git@github.com:jbroll/wapp.git
+git clone git@github.com:jbroll/jbr.tcl.git
+cd jbr.tcl
+make install
+</pre>
+

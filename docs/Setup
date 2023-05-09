@@ -1,0 +1,86 @@
+<pre>
+How to configure the phone
+
+Insert SIM Card
+  Register SIM Card --> https://dashboard.simbase.com/dashboard/sim-cards
+
+Run Software Update until Androin 13 and latest security patch are loaded.
+
+Add Simbase APN
+  Connections -> Mobile networks -> Access Point Names -> Add 
+  	Name: simbase
+	APN: simbase
+
+Turn on Data Saver
+	Set BT/USB/TCP Bridge to allow data saver data
+
+Turn off most Notifications and Wireless Alerts
+	Notifications -> Advanced -> Wireless Emergency Alerts
+
+Turn off Advanced Features
+	Settings -> Advanced Features -> Turn off everything
+
+Install adb and connect to the phone.  Disable Sprint OMADM 
+  /Users/john/Library/Android/sdk/platform-tools/adb shell
+  $ pm disable-user --user 0 com.sec.omadmspr
+  Package com.sec.omadmspr new state: disabled-user
+
+Update Apps
+    Don't down load extra Samsung and Google Apps
+
+
+Set Screen Lock to None
+  Setup -> Screen Lock -> None
+
+Play Store
+
+  Install Tasker
+    Open -> Anable Accessibility
+    Exit -> Allow run in background
+
+    Placeholder - Please Disable 
+    	Show Notifications (off)
+
+    Turn off Tasker Tips 
+    	Tasker -> ... -> Preferences -> Uncheck Tips
+
+  Install AutoInput
+    Open -> Enable Accessibility
+  Install AutoApps
+
+  Click this link to configure Taster <A href="taskerproject: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">
+  Tasker Configuration</A>
+
+  Install BT/USB/TCP Bridge Pro 4.5
+        Apps -> BT/USB/TCP Bridge -> Battery -> Unrestricted
+                                     Mobile Data -> Allow background data usage
+                                                    Allow data usage while data saver in on
+
+
+  Confugure device A as TCP
+    Remote TCP server IP: 192.241.136.225
+    Port 8000
+  Configure device B as USB
+  Configure Autostart 
+      Enable autostart
+      Check autostart to always return to connection page.
+
+  Install NetGuard -- No Root
+      Settings -> Advanded -> System Apps
+      Block all mobile data
+      Enable on mobile
+      	* Tasker
+	* BT/USB/TCP Bridge
+ 
+Developer Mode
+    About -> Software 
+      Tap Build Number 8 times
+    About -> Developer -> Stay awake while charging
+
+Turn off ALL notifications
+    Settings -> Notifications -> Include Apps -> Toggel All Apps
+
+Open Chrome and set as default browser
+   Change home page to http://data.rkroll.com/Setup.html
+
+</pre>
