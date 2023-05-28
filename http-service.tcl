@@ -5,6 +5,7 @@ package require jbr::with
 source ~/src/wapp/wapp.tcl
 source ~/src/wapp/wapp-routes.tcl
 source ~/src/wapp/wapp-static.tcl
+
 source $script_dir/json/json.tcl
 
 proc seconds { time { now "" } } {
@@ -21,6 +22,7 @@ proc seconds { time { now "" } } {
 	h "*3600" 
 	d "*[expr 60*60*24]" 
 	w "*[expr 60*60*24*7]" 
+	t "*[expr 60*60*24*30]" 
 	y "*[expr 60*60*24*365]" 
     } $time]]
 
@@ -43,7 +45,7 @@ wapp-route GET /query/log/start/end {
 	return
     }
 
-    set now   [expr [clock seconds] - 10]
+    set now   [clock seconds]
     set start [seconds $start $now]
     set end   [seconds $end $now]
 
@@ -57,12 +59,12 @@ wapp-route GET /query/log/start/end {
 	    with result = [$stmt execute] { $result close } {
 		set d [$result allrows -as lists]
 
-		foreach time [iota [expr $start/60 * 60] $end 60] {
+		foreach time [iota [expr int($start/60) * 60] $end 60] {
 		    dict set data $time [list 0 0]
 		}
 		foreach row $d {
 		    lassign $row time flow pres
-		    set time [expr $time/60 * 60]
+		    set time [expr int($time/60) * 60]
 		    dict set data $time [list $flow $pres]
 		}
 		set dlist [list]

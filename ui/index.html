@@ -16,7 +16,13 @@
 	}
 	.ct-series-a .ct-line {
 	    stroke: blue;
-	    stroke-width: 3;
+	    stroke-width: 2;
+	}
+	.hdr h2 {
+	  display: inline;
+	}
+	.hdr span {
+	  float: right;
 	}
   </style>
 
@@ -25,13 +31,19 @@
       import { LineChart, FixedScaleAxis } from '/ui/chartist.mjs';
 
       var flowChart;
-      const flowScale = 25.0/32768;
+      const flowScale = 25.0/32767;
 
       var tankChart;
-      const tankScale = 100.0/32768;
+      const tankScale = 100.0/32767;
+
+      function reloadPage() {
+	  location.reload(true);
+      }
 
       function updateCharts() {
-	fetch("http://data.rkroll.com:7777/query/log/-7d")
+	const lookback = document.getElementById("lookback");
+
+	fetch(`http://data.rkroll.com:7777/query/log/-${lookback.value}/-30`)
 	    .then(response => response.json())
 	    .then(data => {
 		console.log("update");
@@ -56,7 +68,9 @@
 	      labelInterpolationFnc: value =>
 		new Date(value).toLocaleString(undefined, {
 		  month: 'short',
-		  day: 'numeric'
+		  day: 'numeric',
+		  hour: 'numeric',
+		  minute: 'numeric'
 	      })
     	  },
 	  axisY: { 
@@ -81,13 +95,27 @@
       }
 
       setInterval(() => { updateCharts(); }, 20000);
+      setInterval(() => { reloadPage(); }, 1000*60*60);
 
       window.loadPage = loadPage;
+      window.updateCharts = updateCharts;
   </script>
 
 </head>
 <body onLoad="loadPage()">
-    <h3>Twilight Park Water Monitor</h3>
+    <div class="hdr">
+	<big><b>Twilight Park Water Monitor</b></big>
+	<span>
+	Look Back 
+	<select name="lookback" id="lookback" onChange="updateCharts();">
+	      <option value="1h">Hour</option>
+	      <option value="1d">Day</option>
+	      <option value="1w" selected>Week</option>
+	      <option value="1t">Month</option>
+	</select>
+	</span>
+    </div>
+    <div style="clear:both"></div>
 
     <center><h4 class="chartTitle">Water Flow</h4></center>
     <div id="flowChart" class="chart"></div>
