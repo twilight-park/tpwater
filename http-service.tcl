@@ -7,6 +7,30 @@ source ~/src/wapp/wapp-routes.tcl
 source ~/src/wapp/wapp-static.tcl
 source $script_dir/json/json.tcl
 
+proc seconds { time { now "" } } {
+
+    if { $now eq "" } {
+	set now [clock seconds]
+    }
+    if { $time eq "" } {
+	return $now
+    }
+
+    set time [expr [string map { 
+	m "*60" 
+	h "*3600" 
+	d "*[expr 60*60*24]" 
+	w "*[expr 60*60*24*7]" 
+	y "*[expr 60*60*24*365]" 
+    } $time]]
+
+    if { $time < 0 } {
+	set time [expr $now + $time]
+    }
+
+    return $time
+}
+
 wapp-route GET /query/log/start/end {
     wapp-cache-control no-cache
 
@@ -19,19 +43,9 @@ wapp-route GET /query/log/start/end {
 	return
     }
 
-    set start [expr [string map { 
-	m "*60" 
-	h "*3600" 
-	d "*[expr 60*60*24]" 
-	w "*[expr 60*60*24*7]" 
-	y "*[expr 60*60*24*365]" 
-    } $start]]
-    if { $start < 0 } {
-	set start [expr [clock seconds] + $start]
-    }
-    if { $end eq "" } {
-	set end [clock seconds]
-    }
+    set now   [expr [clock seconds] - 10]
+    set start [seconds $start $now]
+    set end   [seconds $end $now]
 
     try {
 	with stmt = [db prepare [subst {
@@ -76,8 +90,8 @@ wapp-route GET /monitor {
 
 proc wapp-default {} {
     wapp-mimetype text/html
-    wapp-log info "[wapp-param REMOTE_ADDR] Go Away"
-    wapp "Go Away"
+    wapp-log info "[wapp-param REMOTE_ADDR] [wapp-param PATH_INFO] Go Away"
+    wapp-reply-code ABORT
 }
 
 wapp-start [list -server $ADDR -nowait]
