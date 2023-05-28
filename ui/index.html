@@ -1,0 +1,99 @@
+<html>
+<head>
+  <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chartist/0.11.4/chartist.min.css"> -->
+  <link rel="stylesheet" href="/ui/chartist.min.css">
+  <style type="text/css">
+	.chart {
+	    height: 40%;
+	    width: 95%;
+	}
+	.chart#tankChart {
+	    height: 20%;
+	    width: 95%;
+	}
+	.chartTitle {
+	    margin: 5px;
+	}
+	.ct-series-a .ct-line {
+	    stroke: blue;
+	    stroke-width: 3;
+	}
+  </style>
+
+  <script type="module"> 
+      // import { LineChart, FixedScaleAxis } from 'https://esm.sh/chartist';
+      import { LineChart, FixedScaleAxis } from '/ui/chartist.mjs';
+
+      var flowChart;
+      const flowScale = 25.0/32768;
+
+      var tankChart;
+      const tankScale = 100.0/32768;
+
+      function updateCharts() {
+	fetch("http://data.rkroll.com:7777/query/log/-7d")
+	    .then(response => response.json())
+	    .then(data => {
+		console.log("update");
+
+		const flowData = data.map(d => ({ x: new Date(d[0]*1000), y: d[2] * flowScale }));
+		const tankData = data.map(d => ({ x: new Date(d[0]*1000), y: d[1] * tankScale }));
+
+		flowChart.update({ series: [flowData] });
+		tankChart.update({ series: [tankData] });
+	    }
+	);
+      }
+
+    const chartOptions = {
+	  low: 0,
+	  showPoint: false,
+	  showGrid: false,
+	  axisX: { 
+	      showGrid: false,
+	      type: FixedScaleAxis,
+	      divisor: 7,
+	      labelInterpolationFnc: value =>
+		new Date(value).toLocaleString(undefined, {
+		  month: 'short',
+		  day: 'numeric'
+	      })
+    	  },
+	  axisY: { 
+		showGrid: false,
+		onlyInteger: true
+	  }
+    }
+    const flowChartOptions = {
+	... chartOptions,
+	high: 25,
+    }
+    const tankChartOptions = {
+	... chartOptions,
+	high: 100
+    }
+
+      function loadPage() {
+	  flowChart = new LineChart("#flowChart", { series: [[]] }, flowChartOptions);
+	  tankChart = new LineChart("#tankChart", { series: [[]] }, tankChartOptions);
+
+	  updateCharts();
+      }
+
+      setInterval(() => { updateCharts(); }, 20000);
+
+      window.loadPage = loadPage;
+  </script>
+
+</head>
+<body onLoad="loadPage()">
+    <h3>Twilight Park Water Monitor</h3>
+
+    <center><h4 class="chartTitle">Water Flow</h4></center>
+    <div id="flowChart" class="chart"></div>
+
+    <center><h4 class="chartTitle">Tank Level</h4></center>
+    <div id="tankChart" class="chart"></div>
+
+</body>
+</html>
