@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+enx=$(ifconfig | awk -F: '/enx/ { print $1 }')
+usb=$(ifconfig | awk -F: '/usb/ { print $1 }')
+eth=$(ifconfig | awk -F: '/eth/ { print $1 }')
+
+inf=$(echo ${enx}+ $usb $eth | awk '{ print $1 }')
+
+if [ "$inf" = "" ] ; then
+    echo "No Cell interface?" 2>&1
+    exit 1
+fi
+
+if [ "$1" = "" ]; then
+    echo "firewall [up|down|show|save]" 1>&2
+    exit 1
+fi
+
+CMD=$1 ; shift
+
+
+case $CMD in
+    up)
+        iptables -F INPUT
+        iptables -F OUTPUT
+
+        iptables -A OUTPUT -o $inf -p udp --dport 53 -j ACCEPT
+        iptables -A OUTPUT -o $inf -p tcp --dport 53 -j ACCEPT
+        iptables -A OUTPUT -o $inf -p tcp --dport 8000 -j ACCEPT
+
+        iptables -A OUTPUT -o $inf -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        iptables -A OUTPUT -o $inf -j DROP
+
+        iptables -A INPUT  -i $inf -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        iptables -A INPUT  -i $inf -j DROP
+
+        iptables-save
+    ;;
+    down)
+        iptables -F INPUT
+        iptables -F OUTPUT
+    ;;
+    show)
+        iptables-save
+    ;;
+    save)
+        iptables-save > /etc/iptables/rules.v4
+    ;;
+esac

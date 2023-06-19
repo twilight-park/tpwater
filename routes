@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+enx=$(ifconfig | awk -F: '/enx/ { print $1 }')
+usb=$(ifconfig | awk -F: '/usb/ { print $1 }')
+eth=$(ifconfig | awk -F: '/eth/ { print $1 }')
+
+inf=$(echo ${enx}+ $usb $eth | awk '{ print $1 }')
+
+if [ "$inf" = "" ] ; then
+    echo "No Cell interface?" 2>&1
+    exit 1
+fi
+
+if [ "$1" = "" ]; then
+    echo "routes [cell|wifi]" 2>&2
+    exit 1
+fi
+
+CMD=$1 ; shift
+
+
+data=$(host data.rkroll.com | awk '{ print $NF }')
+GW=$(route -n | awk "/UG/ && /$cell/ { print \$2; exit }")
+
+# The cell modem should have the least priority routes
+#
+ifmetric $cell 2000
+
+case $CMD in
+    cell)
+        # Add a direct route to data.rkroll.com through the cell modem.
+    	# Connections to the data host should always go there?
+        #
+        if [ "$(route -n | grep $data | awk "/UG/ && /$cell/ { print \$2; exit }")" = "" ] ; then 
+            ip route add $data via $GW dev $cell
+        else
+            echo "Cell route to data.rkroll.com is already available"
+        fi
+    ;;
+    wifi)
+        # Delete the host specific route to data.rkroll.com
+        #
+        if [ "$(route -n | grep $data | awk "/UG/ && /$cell/ { print \$2; exit }")" != "" ] ; then 
+            ip route del $data via $GW dev $cell
+        else
+            echo "Cell route to data.rkroll.com is already removed"
+        fi
+    ;;
+esac
+        
+echo 
+route -n
