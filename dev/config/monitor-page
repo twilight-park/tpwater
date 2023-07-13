@@ -4,7 +4,7 @@
   <link rel="stylesheet" href="/ui/chartist.min.css">
   <style type="text/css">
     .chart#flowChart {
-        height: 60%;
+        height: 40%;
         width: 100%;
     }
     .chart#tankChart {
@@ -20,6 +20,11 @@
     }
     .hdr {
         display: inline;
+        position: fixed;
+        width: 95%
+    }
+    .buthdr {
+        display: inline;
     }
     .hdr h4 {
         display: inline;
@@ -32,6 +37,18 @@
     .hdr span {
         float: right;
     }
+    div.buttons {
+        display: flex;
+        justify-content: space-around;
+        position: fixed;
+        bottom: 15%;
+        width: 100%;
+    }
+    .buthdr button {
+        display: inline;
+        font-weight: bold;
+        font-size: 125%;
+    }
   </style>
 
   <script type="module"> 
@@ -40,20 +57,26 @@
 
       var dataLast;
       const dataStale = 120*1000;
-      const spinRate = 200;
+      const spinRate = 250;
       var spinState = 0;
+
+      var page = null;
 
       var flowChart;
       const flowConfig = { scale: 1/62,        zero: 6000, min:   0, max:  50, averageN: 5 };
 
       var tankChart;
-      const tankConfig = { scale: 100.0/28000, zero: 400,  min:   0, max: 100, averageN: 5 };
+      const tankConfig = { scale: 100.0/28000, zero: 400,  min:   0, max: 125, averageN: 5 };
 
       function reloadPage() {
         location.reload(true);
       }
 
       function ticker() {
+          const spinner = "_.:^*  ".split("");   // "-\\|/".split("");
+          spinState++;
+          document.getElementById("spinner").textContent = spinner[spinState % spinner.length];
+
           if ( dataLast == null ) {
             document.getElementById("dataLast").style.color = "yellow";
             return;
@@ -65,21 +88,17 @@
           } else {
             document.getElementById("dataLast").style.color = "black";
           }
-
-          const spinner = "_.:^*  ".split("");   // "-\\|/".split("");
-          spinState++;
-          document.getElementById("spinner").textContent = spinner[spinState % spinner.length];
       }
 
       function clip(min, max, value) {
           return Math.max(min ,Math.min(max, value));
       }
 
-      function scaleData(rawData, i, c) {
-        const data = rawData.map(d => ({ x: new Date(d[0]*1000), y: clip(c.min, c.max, (d[i]-c.zero) * c.scale) }));
+      function selectData(rawData, i, n) {
+        const data = rawData.map(d => ({ x: new Date(d[0]*1000), y: d[i] }));
         const len  = data.length;
-        const sum  = data.slice(len-c.averageN).reduce((a, v) => a + v.y, 0);
-        const mean = sum/c.averageN;
+        const sum  = data.slice(len-n).reduce((a, v) => a + v.y, 0);
+        const mean = sum/n;
 
         return { data: data, mean: mean }
       }
@@ -87,25 +106,48 @@
       function updateCharts() {
         const lookback = document.getElementById("lookback");
 
-        // const url = `http://data.rkroll.com:7777/query/log/-2h/-30`;
-        const url = `http://data.rkroll.com:7777/query/log/-${lookback.value}/-30`;
+        // const url = `/query/log/-2h/-30`;
+        const url = `/query/log/-${lookback.value}/-30`;
 
         fetch(url)
             .then(response => response.json())
             .then(data => {
-            const { data: flowData, mean: flowMean } = scaleData(data, 1, flowConfig);
-            const { data: tankData, mean: tankMean } = scaleData(data, 2, tankConfig);
+                const { data: flowData, mean: flowMean } = selectData(data, 1, 10);
+                const { data: tankData, mean: tankMean } = selectData(data, 2, 10);
 
-            dataLast = new Date(data[data.length-1][0] * 1000);
+                dataLast = new Date(data[data.length-1][0] * 1000);
 
-            document.getElementById("dataLast").textContent = dataLast.toLocaleString();
-            document.getElementById("flowLast").textContent = flowMean.toFixed(0) + " GPM";
-            document.getElementById("tankLast").textContent = tankMean.toFixed(0) + "%";
+                document.getElementById("dataLast").textContent = dataLast.toLocaleString();
+                document.getElementById("flowLast").textContent = flowMean.toFixed(0) + " GPM";
+                document.getElementById("tankLast").textContent = tankMean.toFixed(0) + "%";
 
-            flowChart.update({ series: [flowData] });
-            tankChart.update({ series: [tankData] });
+                flowChart.update({ series: [flowData] });
+                tankChart.update({ series: [tankData] });
             }
         );
+      }
+
+      function updatePage() {
+        const url = "/values?page=monitor";
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if ( page != null && page != data.page ) {
+                    reloadPage()
+                }
+                page = data.page;
+
+                document.getElementById("golf").textContent = data.golf ? "Golf Course :  ON" : "Golf Course : OFF";
+                document.getElementById("golf").style.color = data.golf ? "green" : "blue";
+                document.getElementById("thrd").textContent = data.thrd ? "Third Level :  ON" : "Third Level : OFF";
+                document.getElementById("thrd").style.color = data.thrd ? "green" : "blue";
+            }
+        );
+      }
+
+      function press(b) {
+        fetch(`/press?button=${b}`).then(response => {});
       }
 
     const chartOptions = {
@@ -148,41 +190,61 @@
         updateCharts();
     }
 
+    function logout() {
+        window.location="/logout";
+    }
+
     setInterval(() => { ticker(); }, spinRate);
+    setInterval(() => { updatePage(); }, 2000);
     setInterval(() => { updateCharts(); }, 20000);
     setInterval(() => { reloadPage(); }, 1000*60*60);
 
     window.loadPage = loadPage;
     window.updateCharts = updateCharts;
+    window.updatePage = updatePage;
+    window.logout = logout;
+    window.press = press;
   </script>
 </head>
 
 <body onLoad="loadPage()">
     <div class="hdr">
-    <h4><b>Twilight Park Water Monitor</b>
-        &nbsp:&nbsp
-        <text id=dataLast>Timer</text>
-        &nbsp:&nbsp
-        <text id=spinner>spinner</text>
-    </h4>
-    <span>
-    Look Back 
-    <select name="lookback" id="lookback" onChange="updateCharts();">
-          <option value="1h">Hour</option>
-          <option value="1d" selected>Day</option>
-          <option value="1w">Week</option>
-          <option value="1t">Month</option>
-    </select>
-    </span>
+        <h4><b>Twilight Park Water Monitor</b>
+            &nbsp:&nbsp
+            <text id=dataLast>Timer</text>
+            &nbsp:&nbsp
+            <text id=spinner>spinner</text>
+        </h4>
+        <span>
+            Look Back 
+            <select name="lookback" id="lookback" onChange="updateCharts();">
+                  <option value="1h">Hour</option>
+                  <option value="1d" selected>Day</option>
+                  <option value="1w">Week</option>
+                  <option value="1t">Month</option>
+            </select>
+            &nbsp
+            <button onClick='logout()'>Logout</button>
+        </span>
     </div>
     <br>
     <br>
     <div style="clear:both"></div>
 
+    <div>
     <div class="hdr"> <center><h1 class="chartTitle">Water Flow<span id=flowLast>Flow</span></h1></center></div>
     <div id="flowChart" class="chart"></div>
+    </div>
 
+    <div>
     <div class="hdr"> <center><h1 class="chartTitle">Tank Level<span id=tankLast>Tank</span></h1></center></div>
     <div id="tankChart" class="chart"></div>
+    </div>
+
+    <div><br></div>
+    <div class=buttons>
+        <div class="buthdr"> <h1 class="chartTitle"><button id="golf" onClick="press('golf')">Golf Course</button></h1></div>
+        <div class="buthdr"> <h1 class="chartTitle"><button id="thrd" onClick="press('thrd')">Third Level</button></h1></div>
+    </div>
 </body>
 </html>

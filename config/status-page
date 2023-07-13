@@ -1,0 +1,118 @@
+<html>
+<head>
+  <style type="text/css">
+    .hdr {
+        display: inline;
+    }
+    .hdr h4 {
+        display: inline;
+    }
+    .hdr h1 {
+        display: inline;
+        font-weight: bold;
+        font-size: 40px;
+    }
+    .hdr span {
+        float: right;
+    }
+  </style>
+
+  <script type="module"> 
+      var dataLast;
+      const dataStale = 120*1000;
+      const spinRate = 200;
+      var spinState = 0;
+
+      var page = null;
+
+      var flowChart;
+      const flowConfig = { scale: 1/62,        zero: 6000, min:   0, max:  50 };
+
+      var tankChart;
+      const tankConfig = { scale: 100.0/28000, zero: 400,  min:   0, max: 100 };
+
+      function reloadPage() {
+        location.reload(true);
+      }
+
+      function ticker() {
+          if ( dataLast == null ) {
+            document.getElementById("dataLast").style.color = "yellow";
+            return;
+          }
+          const timeNow = Date.now();
+
+          if ( timeNow - dataLast.getTime() > dataStale ) {
+            document.getElementById("dataLast").style.color = "red";
+          } else {
+            document.getElementById("dataLast").style.color = "black";
+          }
+
+          const spinner = "_.:^*  ".split("");   // "-\\|/".split("");
+          spinState++;
+          document.getElementById("spinner").textContent = spinner[spinState % spinner.length];
+      }
+
+      function clip(min, max, value) {
+          return Math.max(min ,Math.min(max, value));
+      }
+
+      function scaleData(value, c) {
+        return clip(c.min, c.max, (value-c.zero) * c.scale);
+      }
+
+      function updatePage() {
+
+        const url = "/values";
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if ( page != null && page != data.page ) {
+                    reloadPage()
+                }
+                page = data.page;
+
+                const flow = scaleData(data.flow, flowConfig);
+                const tank = scaleData(data.tank, tankConfig);
+
+                dataLast = new Date(data.date * 1000);
+
+                document.getElementById("dataLast").textContent = dataLast.toLocaleString();
+                document.getElementById("flowLast").textContent = flow.toFixed(0) + " GPM";
+                document.getElementById("tankLast").textContent = tank.toFixed(0) + "%";
+            }
+        );
+      }
+
+    function loadPage() {
+        updatePage();
+    }
+
+    setInterval(() => { ticker(); }, spinRate);
+    setInterval(() => { updatePage(); }, 1000);
+    setInterval(() => { reloadPage(); }, 1000*60*60);
+
+    window.loadPage = loadPage;
+    window.updatePage = updatePage;
+  </script>
+</head>
+
+<body onLoad="loadPage()">
+    <div class="hdr">
+    <h4><b>Twilight Park Water Monitor</b>
+        &nbsp:&nbsp
+        <text id=dataLast>Timer</text>
+        &nbsp:&nbsp
+        <text id=spinner>spinner</text>
+    </h4>
+    </div>
+    <br>
+    <br>
+    <div style="clear:both"></div>
+
+    <div class="hdr"> <h1 class="chartTitle">Water Flow<span id=flowLast>Flow</span></h1></div>
+    <div></div>
+    <div class="hdr"> <h1 class="chartTitle">Tank Level<span id=tankLast>Tank</span></h1></div>
+</body>
+</html>

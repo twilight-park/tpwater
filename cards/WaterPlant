@@ -1,4 +1,0 @@
-
-value Flow i2c { 60 ... } zero 5000 scale 0.003
-value Tank i2c { 60 ... } zero 5000 scale 0.0079
-

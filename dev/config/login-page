@@ -1,0 +1,39 @@
+<html>
+<head>
+  <style type="text/css">
+    pre {
+       font-family: "courier new", courier, monospace;
+       font-size: 150%;
+    }
+  </style>
+
+  <script type="module"> 
+      const spinRate = 250;
+      var spinState = 0;
+
+    function ticker() {
+        const spinner = "_.:^*  ".split("");   // "-\\|/".split("");
+        spinState++;
+        document.getElementById("spinner").textContent = spinner[spinState % spinner.length];
+    }
+
+    setInterval(() => { ticker(); }, spinRate);
+  </script>
+</head>
+<body>
+    <div class="hdr">
+    <h4><b>Twilight Park Water Monitor</b>
+        &nbsp:&nbsp
+        <text id=spinner>spinner</text>
+    </h4>
+    </div>
+    <h4>Please Login</h4>
+    <div>
+        <form> <pre>
+        <b>name</b>     <input name=user type=text     size=20/>
+        <b>password</b> <input name=pass type=password size=20/>  <input value=Go type=submit>
+        </pre> </form>
+    </div>
+</body>
+</html>
+

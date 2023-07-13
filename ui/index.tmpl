@@ -44,10 +44,10 @@
       var spinState = 0;
 
       var flowChart;
-      const flowConfig = { scale: 1/62,        zero: 6000, min:   0, max:  50, averageN: 5 };
+      const flowConfig = [!configToJson waterplant measurement flow];
 
       var tankChart;
-      const tankConfig = { scale: 100.0/28000, zero: 400,  min:   0, max: 100, averageN: 5 };
+      const tankConfig = [!configToJson waterplant measurement tank];
 
       function reloadPage() {
         location.reload(true);
@@ -88,7 +88,7 @@
         const lookback = document.getElementById("lookback");
 
         // const url = `http://data.rkroll.com:7777/query/log/-2h/-30`;
-        const url = `http://data.rkroll.com:7777/query/log/-${lookback.value}/-30`;
+        const url = `http://data.rkroll.com:7777/query/log/-%{lookback.value}/-30`;
 
         fetch(url)
             .then(response => response.json())
