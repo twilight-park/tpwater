@@ -71,7 +71,7 @@ foreach config [glob -directory config -tails *] {
 
     if { [string equal $config password] } {
         msg_publish WATER $config $config:base64
-        foreach { hash auth user } [cat password] {
+        foreach { hash auth user } [cat config/$config] {
             dict set ::password $hash "$auth $user"
             dict set ::password $user "$auth $hash"
         }
@@ -83,22 +83,26 @@ foreach config [glob -directory config -tails *] {
     }
 
     if { [string ends-with $config .cfg] } {
-        set ::$config {}
+        set configuration [cat config/$config]
+        set _names {}
         foreach { name values } [cat config/$config] {
             if { $name eq "record" || [string starts-with $name "#"]} { continue }
             if { $name eq "apikey" } {
-                msg_publish WATER $values $config:base64
-                lappend apikeys $values
+                set apikey $values
+                lappend apikeys $apikey
                 continue
             }
 
-            dict lappend ::$config names $name 
+            lappend _names $name 
             lappend ::names $name
 
             channel create $name $name
             $name config $values
             msg_publish WATER $name {} ; # "print-var $name"
         }
+        set ::$apikey $configuration
+        msg_publish WATER $apikey $config:base64
+        dict set ::$apikey names $_names
     }
 }
 set buttons $names
