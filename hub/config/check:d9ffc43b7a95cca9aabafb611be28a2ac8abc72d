@@ -1,5 +1,6 @@
 
-    record 10000
+    record { period 10000 }
+
     flow { device MCP342x bus 1 address 0x68 channel 3  mode in  sample 1000    zero 6000 scale 0.016129 min 0 max  51 }
     tank { device MCP342x bus 1 address 0x68 channel 2  mode in  sample 1000    zero 6000 scale 0.015625 min 0 max 100 }
     golf { device gpio channel 18   title "Golf Course" }

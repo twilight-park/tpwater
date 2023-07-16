@@ -5,10 +5,11 @@ package require jbr::dict
 package require jbr::template
 package require jbr::seconds
 
-source $TPWATER/pkg/wapp/wapp.tcl
-source $TPWATER/pkg/wapp/wapp-routes.tcl
-source $TPWATER/pkg/wapp/wapp-static.tcl
-source $TPWATER/pkg/json/json.tcl
+source ~/src/wapp/wapp.tcl
+source ~/src/wapp/wapp-routes.tcl
+source ~/src/wapp/wapp-static.tcl
+
+source $script_dir/json/json.tcl
 
 wapp-route GET /query/log/start/end {
     wapp-cache-control no-cache

@@ -23,7 +23,7 @@ set schema {
 migrate-db db $schema
 
 proc record { time_measured flow tank golf thrd } {
-    print record $time_measured $flow $tank $golf $thrd
+    print [clock format [clock seconds] -format "%y-%m-%d %H:%M:%S"] $time_measured $flow $tank $golf $thrd
     set time_recorded [clock seconds]
     sql db { insert into log 
 	       (  time_recorded,  time_measured,  flow,  tank,  golf,  thrd) 
