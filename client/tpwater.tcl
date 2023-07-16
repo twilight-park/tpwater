@@ -42,6 +42,7 @@ proc configure { config } {
 
         foreach { name params } $config {
             if { [string index $name 0] eq "#" } { continue }
+            if { $name eq "apikey" } { continue }
             if { $name eq "record" } {
                 set ::record $params
                 continue
