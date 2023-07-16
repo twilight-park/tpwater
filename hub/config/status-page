@@ -144,8 +144,8 @@
     <div class="hdr"> <h1 class="chartTitle">Tank Level<span id=tankLast>Tank</span></h1></div>
     <div><br></div>
     <div class=buttons>
-        <div class="buthdr"> <h1 class="chartTitle"><button id="golf" onClick="press('golf')">[!golf title]</button></h1></div>
-        <div class="buthdr"> <h1 class="chartTitle"><button id="thrd" onClick="press('thrd')">[!thrd title]</button></h1></div>
+        <div class="buthdr"> <h1 class="chartTitle"><button id="golf" onClick="press('golf')">[!golf get title]</button></h1></div>
+        <div class="buthdr"> <h1 class="chartTitle"><button id="thrd" onClick="press('thrd')">[!thrd get title]</button></h1></div>
     </div>
 </body>
 </html>

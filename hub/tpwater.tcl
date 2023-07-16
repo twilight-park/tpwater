@@ -2,11 +2,13 @@
 #
 
 set ADDR tcp!data.rkroll.com!7778
+set env(WATER) .:8001
 
 set script_dir [file dirname $argv0]
+source $script_dir/hub.cfg
 
-set env(WATER) .:8001
-set apikey check:d9ffc43b7a95cca9aabafb611be28a2ac8abc72d
+set ADDR tcp!data.rkroll.com!$WEB_PORT
+set env(WATER) .:$MSG_PORT
 
 set HOME $env(HOME)
 set TPWATER $HOME/tpwater
@@ -28,7 +30,6 @@ source channel.tcl
 msg_server WATER
 msg_deny   WATER internettl.org
 msg_allow  WATER *
-msg_apikey WATER $apikey
 
 proc run { args } {
     with [open "| $args"] as p {
@@ -52,8 +53,8 @@ proc config-read { config } {
 
 proc reload-file { config } {
     print $config
-    set ::$config:hash [config-read config/$config]
-    set ::$config:md5sum [md5sum [set ::$config:hash]]
+    set ::$config:base64 [config-read config/$config]
+    set ::$config:md5sum [md5sum [set ::$config:base64]]
 }
 
 proc print-var { name varname args } {
@@ -61,34 +62,43 @@ proc print-var { name varname args } {
     print print-var $name [set var] $args
 }
 
+
 foreach config [glob -directory config -tails *] {
-    set ::$config:hash [config-read config/$config]
-    set ::$config:md5sum [md5sum [set ::$config:hash]]
-    msg_publish WATER $config $config:hash
-    lappend ::configs $config
+    set ::$config:base64 [config-read config/$config]
+    set ::$config:md5sum [md5sum [set ::$config:base64]]
+
     filewatch config/$config "reload-file $config"
 
-    if { [string ends-with $config -page] } {
-        continue
-    }
-    if { $config eq "password" } {
-        foreach { hash auth user } [value-decode [set ::$config:hash]] {
+    if { [string equal $config password] } {
+        msg_publish WATER $config $config:base64
+        foreach { hash auth user } [cat password] {
             dict set ::password $hash "$auth $user"
             dict set ::password $user "$auth $hash"
         }
+    }
+
+    if { [string ends-with $config -page] } {
+        msg_publish WATER $config $config:base64
         continue
     }
 
-    set ::$config {}
-    foreach { name values } [cat config/$config] {
-        if { $name eq "record" || [string starts-with $name "#"]} { continue }
+    if { [string ends-with $config .cfg] } {
+        set ::$config {}
+        foreach { name values } [cat config/$config] {
+            if { $name eq "record" || [string starts-with $name "#"]} { continue }
+            if { $name eq "apikey" } {
+                msg_publish WATER $values $config:base64
+                lappend apikeys $values
+                continue
+            }
 
-        dict lappend ::$config names $name 
-        lappend ::names $name
+            dict lappend ::$config names $name 
+            lappend ::names $name
 
-        channel create $name $name
-        $name config $values
-        msg_publish WATER $name {} ; # "print-var $name"
+            channel create $name $name
+            $name config $values
+            msg_publish WATER $name {} ; # "print-var $name"
+        }
     }
 }
 set buttons $names
@@ -133,6 +143,7 @@ proc check {} {
     }
 }
 
+msg_apikey WATER $apikeys
 msg_up WATER
 
 check
