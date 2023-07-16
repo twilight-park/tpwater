@@ -6,7 +6,7 @@ set HOME $env(HOME)
 source $script_dir/migrate-db.tcl
 package require tdbc::sqlite3
 
-tdbc::sqlite3::connection create db "$script_dir/check.db"
+tdbc::sqlite3::connection create db "$script_dir/tpwater.db"
 
 set schema {
     log {
