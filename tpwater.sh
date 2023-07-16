@@ -48,7 +48,7 @@ case $CMD in
         pid=$(cat $PID_FILE 2> /dev/null)
         if [ ! -f $PID_FILE -o "$pid" != "" ] ; then
             if ! kill -0 $pid 2> /dev/null ; then
-                $SCRIPT kill
+                $0 kill
                 echo $(date) START  | tee -a $LOG_FILE 1>&2
                 
                 $RUN_SERVICE < /dev/null  >> $LOG_FILE 2>&1 &
