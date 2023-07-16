@@ -16,7 +16,6 @@ set schema {
         { tank real }
         { golf real }
         { thrd real }
-        { pres real }
     }
 }
 

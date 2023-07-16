@@ -2,22 +2,22 @@
 #
 # export MSGDEBUG=1
 
-# set -x
-# exec > $HOME/tpLOG 2>&1
-
 if [ -f $HOME/apikey ] ; then MODE=client
 else MODE=hub; fi
 
-SCRIPT=$(pwd)/$0
+SCRIPT_DIR=$(dirname $0)
+cd $SCRIPT_DIR
 
 SERVICE=tpwater
 SERVICE_EXE=tpwater.tcl
-RUN_SERVICE=$HOME/tpwater/$MODE/$SERVICE_EXE
-LOG_DATE=$(date +%Y%m%d)
-LOG_FILE=$HOME/log/$LOG_DATE-$SERVICE.log
-PID_FILE=$HOME/log/$SERVICE.pid
+RUN_SERVICE=$SCRIPT_DIR/$MODE/$SERVICE_EXE
 
-mkdir -p $HOME/log
+LOG_DATE=$(date +%Y%m%d)
+
+mkdir -p $SCRIPT_DIR/log
+LOG_FILE=$SCRIPT_DIR/log/$LOG_DATE-$SERVICE.log
+PID_FILE=$SCRIPT_DIR/log/$SERVICE.pid
+
 
 CMD=$1 ; shift
 
@@ -26,11 +26,9 @@ case $CMD in
         ./$MODE/scripts/pp-back ./$MODE/scripts/data.rkroll.com
         ;;
     tail)
-        cd $HOME
         tail -f "$LOG_FILE"
         ;;
     stat)
-        cd $HOME
         RUN=$(ps ax | awk '/awk/ { next } /tpwater_EXE/ { print $6 }')
         PID=$(cat 2> /dev/null $PID_FILE)
         if [ "$PID" = "" ] ; then
@@ -47,7 +45,6 @@ case $CMD in
         echo "$STAT $PID $RUN"
         ;;
     start)
-        cd $HOME
         pid=$(cat $PID_FILE 2> /dev/null)
         if [ ! -f $PID_FILE -o "$pid" != "" ] ; then
             if ! kill -0 $pid 2> /dev/null ; then
@@ -62,13 +59,11 @@ case $CMD in
         fi
         ;;
     stop)
-        cd $HOME
         kill $(cat $PID_FILE)
         rm  $PID_FILE
         echo $(date) STOPED | tee -a  $LOG_FILE 1>&2
         ;;
     kill)
-        cd $HOME
         pid=$(ps ax | grep  $SERVICE_EXE | grep -v grep | awk '{ print $1 }')
         if [ "$pid" != "" ] ; then
             kill $pid
@@ -88,7 +83,7 @@ case $CMD in
     setup)
         ;;
     crontab)
-        cat $HOME/tpwater/share/crontab | crontab
+        cat share/scripts/crontab | crontab
         crontab -l
         ;;
 esac

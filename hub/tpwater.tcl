@@ -22,10 +22,10 @@ package require jbr::print
 package require jbr::string
 package require jbr::filewatch
 
-source db-setup.tcl
-source http-service.tcl
+source $script_dir/db-setup.tcl
+source $script_dir/http-service.tcl
 
-source channel.tcl
+source $script_dir/channel.tcl
 
 msg_server WATER
 msg_deny   WATER internettl.org
@@ -63,15 +63,15 @@ proc print-var { name varname args } {
 }
 
 
-foreach config [glob -directory config -tails *] {
-    set ::$config:base64 [config-read config/$config]
+foreach config [glob -directory $script_dir/config -tails *] {
+    set ::$config:base64 [config-read $script_dir/config/$config]
     set ::$config:md5sum [md5sum [set ::$config:base64]]
 
-    filewatch config/$config "reload-file $config"
+    filewatch $script_dir/config/$config "reload-file $config"
 
     if { [string equal $config password] } {
         msg_publish WATER $config $config:base64
-        foreach { hash auth user } [cat config/$config] {
+        foreach { hash auth user } [cat $script_dir/config/$config] {
             dict set ::password $hash "$auth $user"
             dict set ::password $user "$auth $hash"
         }
@@ -83,9 +83,9 @@ foreach config [glob -directory config -tails *] {
     }
 
     if { [string ends-with $config .cfg] } {
-        set configuration [cat config/$config]
+        set configuration [cat $script_dir/config/$config]
         set _names {}
-        foreach { name values } [cat config/$config] {
+        foreach { name values } $configuration {
             if { $name eq "record" || [string starts-with $name "#"]} { continue }
             if { $name eq "apikey" } {
                 set apikey $values
