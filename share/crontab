@@ -1,0 +1,2 @@
+*/2 * * * * /home/john/tpwater/tpwater.sh   start
+45   2 * * * /home/john/tpwater/tpwater.sh restart

@@ -1,0 +1,54 @@
+#!/bin/sh
+#
+SCRIPT_PATH=$(dirname $0)
+
+if [ "$1" = "" ]; then
+    echo "routes [cell|wifi]" 2>&2
+    exit 1
+fi
+if [ $(whoami) != "root" ] ; then
+    sudo $0 "$@"
+    exit $?
+fi
+
+CMD=$1 ; shift
+
+cell=$($SCRIPT_PATH/cell-interface)
+
+data=$(host data.rkroll.com | awk '{ print $NF }')
+GW=$(route -n | awk "/UG/ && /$cell/ { print \$2; exit }")
+
+if [ "$GW" = "" ] ; then
+    echo No gateway for interface $cell 1>&2
+    exit 1
+fi
+
+
+# The cell modem should have the least priority routes
+#
+# ifmetric $cell 2000
+
+case $CMD in
+    cell)
+        # Add a direct route to data.rkroll.com through the cell modem.  Connections
+        # to the data host should always go there?
+        #
+        if [ "$(route -n | grep $data | awk "/UG/ && /$cell/ { print \$2; exit }")" = "" ] ; then 
+            ip route add $data via $GW dev $cell
+        else
+            echo "Cell route to data.rkroll.com is already available"
+        fi
+    ;;
+    wifi)
+        # Delete the host specific route to data.rkroll.com
+        #
+        if [ "$(route -n | grep $data | awk "/UG/ && /$cell/ { print \$2; exit }")" != "" ] ; then 
+            ip route del $data via $GW dev $cell
+        else
+            echo "Cell route to data.rkroll.com is already removed"
+        fi
+    ;;
+esac
+        
+echo 
+route -n

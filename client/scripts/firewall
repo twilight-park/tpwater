@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+SCRIPT_PATH=$(dirname $0)
+
+if [ $(whoami) != "root" ] ; then
+    sudo $0 "$@"
+    exit $?
+fi
+
+CMD=$1 ; shift
+
+cell=$($SCRIPT_PATH/cell-interface)
+
+case $CMD in
+    up)
+        iptables -F INPUT
+        iptables -F OUTPUT
+
+        iptables -A OUTPUT -o $cell -p udp --dport 53 -j ACCEPT
+        iptables -A OUTPUT -o $cell -p tcp --dport 53 -j ACCEPT
+        iptables -A OUTPUT -o $cell -p tcp --dport 8000 -j ACCEPT
+        iptables -A OUTPUT -o $cell -p tcp --dport 8001 -j ACCEPT
+        iptables -A OUTPUT -o $cell -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        iptables -A OUTPUT -o $cell -j DROP
+
+        iptables -A INPUT  -i $cell -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        iptables -A INPUT  -i $cell -j DROP
+
+        iptables-save
+    ;;
+    down)
+        iptables -F INPUT
+        iptables -F OUTPUT
+    ;;
+    show)
+        iptables-save
+    ;;
+    save)
+        iptables-save > /etc/iptables/rules.v4
+    ;;
+esac

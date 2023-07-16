@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+
+for inf in enx usb eth ; do
+    chk=$(ip -br addr show | awk "/$inf/"' { print $1; exit }')
+    if [ "$chk" = "" ] ; then
+        continue
+    fi
+
+    echo $chk
+    exit
+done
+

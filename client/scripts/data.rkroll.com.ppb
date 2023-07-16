@@ -1,0 +1,22 @@
+
+name=tpwater
+mode=push
+host=john@data.rkroll.com
+link=yes
+save=15
+rsync=""
+delete=yes
+
+prefix=backups/$(hostname)
+
+data="/home/john/tpwater"
+
+
+case "$ACTION" in 
+   PRE_BACKUP)
+     ./client/scripts/routes wifi
+   ;;
+   POST_BACKUP)
+     ./client/scripts/routes cell
+   ;;
+esac

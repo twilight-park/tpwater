@@ -1,0 +1,23 @@
+filetype plugin on
+set nocp
+
+set autowrite
+set showmatch
+set ignorecase
+set nowrap
+
+set autoindent
+set tabstop=4
+set shiftwidth=4
+set expandtab
+set shiftwidth=4
+set textwidth=0
+set cinkeys-=0#
+set indentkeys-=0#
+
+set nohlsearch
+set cindent
+set background=dark
+
+autocmd FileType make set noexpandtab shiftwidth=8 softtabstop=0
+

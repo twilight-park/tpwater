@@ -1,0 +1,47 @@
+[user]
+  name = John Roll
+  email = john@rkroll.com
+
+[alias]
+        st = status
+        br = branch
+        ci = commit
+        sw = switch
+        co = checkout
+        ll = log --graph --abbrev-commit --decorate --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all
+        l1 = log --all --oneline -n 15
+
+        cm = commit -m
+        ac = !git add . && git cm
+
+        fp = push --force-with-lease -u
+        aaa = !git add . && git amend
+        afp = !git amend && git fp
+        aaafp = !git aaa && git fp
+
+        am = commit --amend --no-edit
+        amend = commit --amend --no-edit
+
+        files = diff --name-only HEAD^
+
+        unstage = reset HEAD -- 
+        uncommit = reset --soft HEAD^
+
+        sync-up = !git co master && git fetch upstream && git merge upstream/master && git push
+
+[push]
+	default = current
+[core]
+    editor = vi
+	hooksPath = /Users/jroll/.git/githooks
+[url "ssh://git@github.com"]
+	insteadOf = https://github.com
+[gc]
+	auto = 0
+[init]
+	defaultBranch = main
+
+[diff]
+    tool = tkdiff
+[pull]
+	rebase = true
