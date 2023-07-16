@@ -114,6 +114,7 @@ msg_srvproc WATER rec { seconds args } {
 
         upvar sock sock
         set names [dict get [set ::[msg_getkey WATER $sock]] names]
+
         foreach name $names value $args {
             set ::$name $value
         }
