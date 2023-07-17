@@ -95,6 +95,7 @@ proc configure { config } {
 proc set-state { name var args } {
     upvar $var value
     $name write $value
+    set ::$name $value
     msg_set WATER $name $value
 }
 
