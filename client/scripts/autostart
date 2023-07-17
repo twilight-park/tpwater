@@ -1,0 +1,9 @@
+@xset s off
+@xset -dpms
+@xset s noblank
+
+@lxpanel --profile LXDE-pi
+@pcmanfm --desktop --profile LXDE-pi
+
+@unclutter -idle
+@chromium --kiosk --noerrdialogs --disable-infobars  -disable-translate https://localhost:7777/status
