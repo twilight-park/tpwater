@@ -68,30 +68,29 @@ wapp-route GET /status  { http-page status }
 wapp-route GET /monitor { http-page monitor }
 
 wapp-route GET /press {
-    set b [wapp-param button]
-    if { $b ni $::outputs } {
-        return
+    http-page press text/html {
+        set b [wapp-param button]
+        if { $b ni $::outputs } {
+            return
+        }
+
+        set state [get? ::$b]
+
+        if { ![string is boolean $state] } { return }
+
+        set state [expr !$state]
+        set ::$b:request $state
     }
-
-    set state [get? ::$b]
-
-    if { ![string is boolean $state] } { return }
-
-    set state [expr !$state]
-    set ::$b:request $state
 }
 
 wapp-route GET /values {
-    wapp-mimetype application/json
-    wapp-cache-control no-cache
-
-    try {
+    http-page values application/json {
         wapp [template:subst { {
-                [: name $!::names { "$!name": [!get? ::$!name], } ]
-                "date": [!clock seconds],
-                "page": "[!get? ::status-page:md5sum]"
-            } }]
-    } on error e { print $e }
+            [: name $!::names { "$!name": [!get? ::$!name], } ]
+            "date": [!clock seconds],
+            "page": "[!get? ::status-page:md5sum]"
+        } }]
+    }
 }
 
 wapp-start [list -server $ADDR -nowait]

@@ -46,16 +46,17 @@ proc check-auth { page } {
     return $authOk
 }
 
-proc http-page { name } {
+proc http-page { name { mime text/html } { code { wapp [value-decode [set ::$name-page:base64]] } } } {
     try { 
 
         if { ![check-auth $name] } { return }
 
-        wapp-mimetype text/html
+        wapp-mimetype $mime
         wapp-cache-control no-cache
         wapp-content-security-policy off
 
-        wapp [value-decode [set ::$name-page:base64]]
+        print $code
+        eval $code
     } on error e { print $e }
 }
 
