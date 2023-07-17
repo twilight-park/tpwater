@@ -1,10 +1,14 @@
 
+package require jbr::string
+
 proc check-auth { page } {
+    if { [string starts-with [wapp-param HTTP_HOST] "localhost:"] } {
+        return true
+    }
+        
     set token [wapp-param token]
     set user  [wapp-param user]
     set pass  [wapp-param pass]
-
-    print check-auth [wapp-param HTTP_HOST]
 
 
     set authOk false
@@ -28,13 +32,12 @@ proc check-auth { page } {
         }
     }
 
-
     if { $authOk } {
         wapp-set-cookie token $token
     }
 
     if { $authOk && $page eq "login" } {
-        wapp-redirect /monitor
+        wapp-redirect /[wapp-param page]
         return false
     }
 
@@ -42,22 +45,10 @@ proc check-auth { page } {
         return true
     }
         
-    if { !$authOk } { wapp-redirect /login }
+    if { !$authOk } {
+        wapp-redirect /login?page=$page
+    }
     return $authOk
-}
-
-proc http-page { name { mime text/html } { code { wapp [value-decode [set ::$name-page:base64]] } } } {
-    try { 
-
-        if { ![check-auth $name] } { return }
-
-        wapp-mimetype $mime
-        wapp-cache-control no-cache
-        wapp-content-security-policy off
-
-        print $code
-        eval $code
-    } on error e { print $e }
 }
 
 proc get? { name } {
@@ -71,4 +62,20 @@ proc get? { name } {
     } else {
         return {"?"}
     }
+}
+
+proc http-page { page { mime text/html } { 
+        code { wapp [template:subst [value-decode [set ::$page-page:base64]]] } 
+    } 
+} {
+    try { 
+
+        if { ![check-auth $page] } { return }
+
+        wapp-mimetype $mime
+        wapp-cache-control no-cache
+        wapp-content-security-policy off
+
+        eval $code
+    } on error e { print $e }
 }

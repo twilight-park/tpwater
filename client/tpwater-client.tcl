@@ -195,6 +195,15 @@ proc subscribe-to-names { var args } {
     }
 }
 
+proc password { var args } {
+    upvar $var value
+    set passwords [value-decode $value]
+    foreach { hash auth user } $passwords {
+        dict set ::password $hash "$auth $user"
+        dict set ::password $user "$auth $hash"
+    }
+}
+
 msg_client WATER
 msg_setreopen WATER 10000
 msg_apikey WATER $apikey
@@ -202,8 +211,8 @@ msg_apikey WATER $apikey
 msg_subscribe WATER names {} subscribe-to-names
 
 msg_subscribe WATER $apikey config reconfig
-msg_subscribe WATER status-page {} value-md5sum
-msg_subscribe WATER login-page {} value-md5sum
-msg_subscribe WATER password {}  ; # password 
+msg_subscribe WATER status-page status-page:base64 value-md5sum
+msg_subscribe WATER  login-page  login-page:base64 value-md5sum
+msg_subscribe WATER password password:base64 password 
 
 vwait forever

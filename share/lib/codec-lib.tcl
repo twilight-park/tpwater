@@ -10,8 +10,7 @@ proc md5sum { value } {
 }
 
 proc value-md5sum { var args } {
-    print md5sum $var
-    set ::$var:md5sum [md5sum [set $var]]
+    set ::[lindex [split $var :] end-1]:md5sum [md5sum [set $var]]
 }
 
 proc value-encode { config } {
