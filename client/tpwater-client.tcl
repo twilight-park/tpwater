@@ -22,6 +22,7 @@ set apikey [cat $HOME/apikey]
 
 set script_dir [file dirname $argv0]
 
+source $script_dir/../share/lib/codec-lib.tcl
 source $script_dir/http-service.tcl
 
 source $script_dir/devices/ADS1115.tcl
@@ -97,10 +98,6 @@ proc set-state { name var args } {
     $name write $value
     set ::$name $value
     msg_set WATER $name $value {} async
-}
-
-proc value-decode { value } {
-    return [zlib inflate [binary decode base64 $value]]
 }
 
 proc reconfig { args } {
@@ -195,15 +192,6 @@ proc run { args } {
     with [open "| $args"] as p {
         return [lindex [read $p] 0]
     }
-}
-
-proc md5sum { value } {
-    return [run md5sum - << $value]
-}
-
-proc value-md5sum { var args } {
-    print md5sum $var
-    set ::$var:md5sum [md5sum [set $var]]
 }
 
 proc subscribe-to-names { var args } {

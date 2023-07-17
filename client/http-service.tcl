@@ -7,18 +7,8 @@ source $TPWATER/pkg/wapp/wapp.tcl
 source $TPWATER/pkg/wapp/wapp-routes.tcl
 source $TPWATER/pkg/wapp/wapp-static.tcl
 
-proc get? { name } {
-    if { [info exists $name] } {
-        set value [set $name]
-        if { $value eq "" } {
-            return {""}
-        }
-
-        return [set $name]
-    } else {
-        return {"?"}
-    }
-}
+source $script_dir/../share/lib/http-lib.tcl
+source $script_dir/../share/lib/page-lib.tcl
 
 wapp-route GET /values {
     wapp-mimetype application/json
@@ -31,11 +21,6 @@ wapp-route GET /values {
                 "page": "[!get? ::status-page:md5sum]" 
             } }]
     } on error e { print $e }
-}
-
-wapp-route GET /favicon.ico {
-    wapp-mimetype image/x-icon
-    try { wapp [bcat $::script_dir/static/favicon.ico] } on error e { print $e } 
 }
 
 wapp-route GET /status {
@@ -61,17 +46,6 @@ wapp-route GET /press {
     } else {
          msg_set WATER $b:request $state {} async
      }
-}
-
-wapp-route GET /logout   {
-    wapp-set-cookie token X
-    wapp-redirect /login
-}
-
-proc wapp-default {} {
-    wapp-mimetype text/html
-    wapp-log info "[wapp-param REMOTE_ADDR] [wapp-param PATH_INFO] Go Away"
-    wapp-reply-code ABORT
 }
 
  wapp-start [list -server $ADDR -nowait]
