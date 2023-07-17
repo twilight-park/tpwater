@@ -4,12 +4,12 @@ oo::class create channel {
         variable name $nm
     }
 
-    method scaled {} {
+    method scaled { value } {
         variable name
         if { [$name get max] ne "" } {
-            return [expr max(min(([set ::$name]-[$name get zero]) * [$name get scale], [$name get max]), [$name get min])]
+            return [expr max(min(($value-[$name get zero]) * [$name get scale], [$name get max]), [$name get min])]
         } else {
-            return [set ::$name]
+            return $value
         }
     }
     method config { c } {

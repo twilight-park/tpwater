@@ -117,7 +117,7 @@ proc http-page { name } {
         wapp-cache-control no-cache
         wapp-content-security-policy off
 
-        wapp [value-decode [set ::$name-page:hash]]
+        wapp [value-decode [set ::$name-page:base64]]
     } on error e { print $e }
 }
 
@@ -130,33 +130,43 @@ wapp-route GET /logout   {
     wapp-redirect /login
 }
 
-wapp-route GET /press {
-    if { ![check-auth press] } { return }
+proc get? { name } {
+    if { [info exists $name] } {
+        set value [set $name]
+        if { $value eq "" } {
+            return {""}
+        }
 
-    set b [wapp-param button]
-    if { $b ni $::buttons } {
-        return
+        return [set $name]
+    } else {
+        return {"?"}
     }
-    set state [set ::$b]
-    set state [expr !$state]
-    set ::$b $state
 }
 
-wapp-route GET /values {
-    if { ![check-auth values] } { return }
+wapp-route GET /press {
+    set b [wapp-param button]
+    if { $b ni $::outputs } {
+        return
+    }
 
+    print $b STATE  [get? ::$b]
+    set state [get? ::$b]
+    set state [expr !$state]
+
+    set ::$b:request $state
+}
+
+
+wapp-route GET /values {
     wapp-mimetype application/json
     wapp-cache-control no-cache
-    set page [set ::[wapp-param page]-page:md5sum]
 
     try {
-        wapp [template:subst {
-            {
-                [: name $!::names { "$!name": [!$!name scaled], }]
+        wapp [template:subst { {
+                [: name $!::names { "$!name": [!get? ::$!name], } ]
                 "date": [!clock seconds],
-                "page": "$!page"
-            }
-        }]
+                "page": "[!get? ::status-page:md5sum]"
+            } }]
     } on error e { print $e }
 }
 

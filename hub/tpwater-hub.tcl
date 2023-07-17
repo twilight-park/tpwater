@@ -15,7 +15,9 @@ set TPWATER $HOME/tpwater
 
 ::tcl::tm::path add $HOME/lib/tcl8/site-tcl
 
-package require jbr::msg
+#package require jbr::msg
+source ../pkg/jbr.tcl/msg/msg.tcl
+
 package require jbr::unix
 package require jbr::with
 package require jbr::print
@@ -52,7 +54,7 @@ proc config-read { config } {
 }
 
 proc reload-file { config } {
-    print $config
+    print reload file $config
     set ::$config:base64 [config-read config/$config]
     set ::$config:md5sum [md5sum [set ::$config:base64]]
 }
@@ -99,6 +101,10 @@ foreach config [glob -directory $script_dir/config -tails *] {
             channel create $name $name
             $name config $values
             msg_publish WATER $name {} ; # "print-var $name"
+            if { [$name get mode] eq "out" } {
+                msg_publish WATER $name:request {} ; # "print-var $name"
+                lappend ::outputs $name
+            }
         }
         set ::$apikey $configuration
         msg_publish WATER $apikey $config:base64
@@ -130,8 +136,14 @@ msg_srvproc WATER rec { seconds args } {
 
         upvar sock sock
         set names [dict get [set ::[msg_getkey WATER $sock]] names]
-        foreach name $names value $args {
-            set ::$name $value
+        try {
+            msg_setting $sock
+            foreach name $names value $args {
+                print set ::$name [$name scaled $value]
+                set ::$name [$name scaled $value]
+            }
+        } finally {
+            msg_setting {}
         }
     } on error e { print $e }
 }
@@ -147,6 +159,8 @@ proc check {} {
     }
 }
 
+print Global Names $::names
+msg_publish WATER names
 msg_apikey WATER $apikeys
 msg_up WATER
 
