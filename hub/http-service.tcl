@@ -9,6 +9,9 @@ source pkg/wapp/wapp.tcl
 source pkg/wapp/wapp-routes.tcl
 source pkg/wapp/wapp-static.tcl
 
+source ../share/lib/http-lib.tcl
+source ../share/lib/page-lib.tcl
+
 source pkg/json/json.tcl
 
 wapp-route GET /query/log/start/end {
@@ -60,88 +63,9 @@ wapp-route GET /query/log/start/end {
 
 wapp-static ~/tpwater/ui ui nobrowse
 
-wapp-route GET /favicon.ico {
-    wapp-mimetype image/x-icon
-    try { wapp [bcat static/favicon.ico] } on error e { print $e }
-}
-
-proc check-auth { page } {
-    set token [wapp-param token]
-    set user  [wapp-param user]
-    set pass  [wapp-param pass]
-
-    set authOk false
-
-    if { $token ne {} } {
-        set auth [dict get? $::password $token]
-        if { $auth ne {} } {
-            set authOk true
-        }
-    }
-
-    if { $user ne {} } {
-        set pass [md5sum $pass]
-        set auth [dict get? $::password $user]
-
-        if { $auth ne {} } {
-            if { $pass eq [lindex $auth 1] } {
-                set token [lindex $auth 1]
-                set authOk true
-            }
-        }
-    }
-
-
-    if { $authOk } {
-        wapp-set-cookie token $token
-    }
-
-    if { $authOk && $page eq "login" } {
-        wapp-redirect /monitor
-        return false
-    }
-
-    if { $page eq "login" } {
-        return true
-    }
-        
-    if { !$authOk } { wapp-redirect /login }
-    return $authOk
-}
-
-proc http-page { name } {
-    try { 
-        if { ![check-auth $name] } { return }
-
-        wapp-mimetype text/html
-        wapp-cache-control no-cache
-        wapp-content-security-policy off
-
-        wapp [value-decode [set ::$name-page:base64]]
-    } on error e { print $e }
-}
-
 wapp-route GET /login   { http-page login }
 wapp-route GET /status  { http-page status }
 wapp-route GET /monitor { http-page monitor }
-
-wapp-route GET /logout   { 
-    wapp-set-cookie token X
-    wapp-redirect /login
-}
-
-proc get? { name } {
-    if { [info exists $name] } {
-        set value [set $name]
-        if { $value eq "" } {
-            return {""}
-        }
-
-        return [set $name]
-    } else {
-        return {"?"}
-    }
-}
 
 wapp-route GET /press {
     set b [wapp-param button]
@@ -149,13 +73,13 @@ wapp-route GET /press {
         return
     }
 
-    print $b STATE  [get? ::$b]
     set state [get? ::$b]
-    set state [expr !$state]
 
+    if { ![string is boolean $state] } { return }
+
+    set state [expr !$state]
     set ::$b:request $state
 }
-
 
 wapp-route GET /values {
     wapp-mimetype application/json
@@ -170,11 +94,4 @@ wapp-route GET /values {
     } on error e { print $e }
 }
 
-proc wapp-default {} {
-    wapp-mimetype text/html
-    wapp-log info "[wapp-param REMOTE_ADDR] [wapp-param PATH_INFO] Go Away"
-    wapp-reply-code ABORT
-}
-
 wapp-start [list -server $ADDR -nowait]
-
