@@ -24,6 +24,8 @@ package require jbr::print
 package require jbr::string
 package require jbr::filewatch
 
+source $script_dir/../share/lib/codec-lib.tcl
+
 source $script_dir/db-setup.tcl
 source $script_dir/http-service.tcl
 
@@ -33,22 +35,6 @@ msg_server WATER
 msg_deny   WATER internettl.org
 msg_allow  WATER *
 
-proc run { args } {
-    with [open "| $args"] as p {
-        return [lindex [read $p] 0]
-    }
-}
-
-proc md5sum { value } {
-    return [run md5sum - << $value]
-}
-
-proc value-encode { config } {
-    return [binary encode base64 [zlib deflate $config]]]
-}
-proc value-decode { value } {
-    return [zlib inflate [binary decode base64 $value]]
-}
 proc config-read { config } {
     return [value-encode [cat $config]]
 }
