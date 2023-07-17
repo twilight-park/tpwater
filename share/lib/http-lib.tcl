@@ -37,7 +37,7 @@ proc check-auth { page } {
     }
 
     if { $authOk && $page eq "login" } {
-        wapp-redirect /[wapp-param page]
+        wapp-redirect /[wapp-param page monitor]
         return false
     }
 

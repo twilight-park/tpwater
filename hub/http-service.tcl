@@ -9,8 +9,8 @@ source pkg/wapp/wapp.tcl
 source pkg/wapp/wapp-routes.tcl
 source pkg/wapp/wapp-static.tcl
 
-source ../share/lib/http-lib.tcl
-source ../share/lib/page-lib.tcl
+source $script_dir/../share/lib/http-lib.tcl
+source $script_dir/../share/lib/page-lib.tcl
 
 source pkg/json/json.tcl
 
@@ -63,33 +63,19 @@ wapp-route GET /query/log/start/end {
 
 wapp-static ~/tpwater/ui ui nobrowse
 
-wapp-route GET /login   { http-page login }
-wapp-route GET /status  { http-page status }
-wapp-route GET /monitor { http-page monitor }
-
 wapp-route GET /press {
     http-page press text/html {
-        set b [wapp-param button]
-        if { $b ni $::outputs } {
+        set button [wapp-param button]
+        if { $button ni $::outputs } {
             return
         }
 
-        set state [get? ::$b]
+        set state [get? ::$button]
 
         if { ![string is boolean $state] } { return }
 
         set state [expr !$state]
-        set ::$b:request $state
-    }
-}
-
-wapp-route GET /values {
-    http-page values application/json {
-        wapp [template:subst { {
-            [: name $!::names { "$!name": [!get? ::$!name], } ]
-            "date": [!clock seconds],
-            "page": "[!get? ::status-page:md5sum]"
-        } }]
+        set ::$button:request $state
     }
 }
 
