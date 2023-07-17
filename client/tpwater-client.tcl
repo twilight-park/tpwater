@@ -31,12 +31,6 @@ source $script_dir/devices/gpio.tcl
 
 source $script_dir/channel.tcl
 
-proc run { args } {
-    with [open "| $args"] as p {
-        return [lindex [read $p] 0]
-    }
-}
-
 proc configure { config } {
     try {
         print configure $config

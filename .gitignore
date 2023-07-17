@@ -1,4 +1,5 @@
 
+*.swp
 *.db
 pkg/
 log/
