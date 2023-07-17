@@ -139,7 +139,6 @@ msg_srvproc WATER rec { seconds args } {
         try {
             msg_setting $sock
             foreach name $names value $args {
-                print set ::$name [$name scaled $value]
                 set ::$name [$name scaled $value]
             }
         } finally {
