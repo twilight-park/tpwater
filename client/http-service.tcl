@@ -48,15 +48,19 @@ wapp-route GET /status {
 
 wapp-route GET /press {
     set b [wapp-param button]
-    if { $b ni $::outputs } {
+    if { $b ni $::names } {
         return
     }
-    set state [$b read]
-    set state [expr !$state]
-    $b write $state
-    set ::$b $state
 
-    msg_set WATER $b:request $state {} async
+    if { $b in $::outputs } {
+        set state [$b read]
+        set state [expr !$state]
+        $b write $state
+        set ::$b $state
+        msg_set WATER $b $state {} async
+    } else {
+         msg_set WATER $b:request $state {} async
+     }
 }
 
 wapp-route GET /logout   {

@@ -82,8 +82,6 @@ case $CMD in
         $0 start
         ;;
 
-    setup)
-        ;;
     crontab)
         cat share/scripts/crontab | crontab
         crontab -l
