@@ -61,15 +61,14 @@ oo::class create channel {
         variable current
         set current $value
     }
-    method scaled {} {
-        variable current
+    method scaled { value } {
         variable config
 
         dict with config {
             if { [info exists max] } {
-                return [expr max(min(($current-$zero) * $scale, $max), $min)]
+                return [expr max(min(($value-$zero) * $scale, $max), $min)]
             } else {
-                return $current
+                return $value
             }
         }
     }

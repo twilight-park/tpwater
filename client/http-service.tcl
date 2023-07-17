@@ -7,14 +7,28 @@ source $TPWATER/pkg/wapp/wapp.tcl
 source $TPWATER/pkg/wapp/wapp-routes.tcl
 source $TPWATER/pkg/wapp/wapp-static.tcl
 
+proc get? { name } {
+    if { [info exists $name] } {
+        set value [set $name]
+        if { $value eq "" } {
+            return {""}
+        }
+
+        return [set $name]
+    } else {
+        return {"?"}
+    }
+}
+
 wapp-route GET /values {
     wapp-mimetype application/json
     wapp-cache-control no-cache
+
     try {
         wapp [template:subst { {
-                [: name $!::names { "$!name": [!$!name scaled], } ] 
+                [: name $!::names { "$!name": [!get? ::$!name], } ] 
                 "date": [!clock seconds], 
-                "page": "$!{::status-page:md5sum}" 
+                "page": "[!get? ::status-page:md5sum]" 
             } }]
     } on error e { print $e }
 }
@@ -34,7 +48,7 @@ wapp-route GET /status {
 
 wapp-route GET /press {
     set b [wapp-param button]
-    if { $b ni $::buttons } {
+    if { $b ni $::outputs } {
         return
     }
     set state [$b read]
@@ -42,8 +56,9 @@ wapp-route GET /press {
     $b write $state
     set ::$b $state
 
-    msg_set WATER $b $state {} async
+    msg_set WATER $b:request $state {} async
 }
+
 wapp-route GET /logout   {
     wapp-set-cookie token X
     wapp-redirect /login

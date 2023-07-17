@@ -48,8 +48,6 @@ proc configure { config } {
                 continue
             }
 
-            lappend ::names $name
-
             dict with params {
                 switch $device {
                   ADS1115 -
@@ -76,19 +74,18 @@ proc configure { config } {
                     dict set ::$dev sample 0
 
                     lappend ::inputs $name
-                    lappend ::buttons $name
                     lappend ::devices $dev
 
                     channel create $name $name $dev $channel 0
-
                   }
                 }
             }
-            print $name config $params
             $name config $params
-        }
-        foreach name $::buttons {
-            msg_subscribe WATER $name {} "set-state $name"
+            msg_subscribe WATER $name 
+            if { [$name get mode] eq "out" } {
+                lappend ::outputs $name
+                msg_subscribe WATER $name:request {} "set-state $name"
+            }
         }
 
         set ::devices [lsort -uniq $::devices]
@@ -98,6 +95,7 @@ proc configure { config } {
 proc set-state { name var args } {
     upvar $var value
     $name write $value
+    msg_set WATER $name $value
 }
 
 proc value-decode { value } {
@@ -139,7 +137,9 @@ proc sample { device args } {
 proc record { args } {
     try {
         foreach name $args {
-            lappend values [$name value]
+            set value [$name value]
+            lappend values $value
+            set ::$name [$name scaled $value]
         }
         print record [clock seconds] [zip $args $values]
 
@@ -166,15 +166,14 @@ proc cleanup {} {
             }
             unset? ::devices
         }
-        if { [info exists ::names] } {
-            foreach name $::names {
-                unset? ::$name
-                rename $name {}
+        if { [info exists ::inputs] } {
+            foreach input $::inputs {
+                rename $input {}
             }
-            unset? ::names
+            unset? ::inputs
         }
+        
         unset? ::inputs
-        unset? ::buttons
     } on error e { print cleanup : $e }
 }
 
@@ -206,13 +205,22 @@ proc value-md5sum { var args } {
     set ::$var:md5sum [md5sum [set $var]]
 }
 
+proc subscribe-to-names { var args } {
+    upvar $var value
+    foreach name $value {
+        msg_subscribe WATER $name
+    }
+}
+
 msg_client WATER
 msg_setreopen WATER 10000
 msg_apikey WATER $apikey
 
+msg_subscribe WATER names {} subscribe-to-names
+
 msg_subscribe WATER $apikey config reconfig
 msg_subscribe WATER status-page {} value-md5sum
 msg_subscribe WATER login-page {} value-md5sum
-msg_subscribe WATER passord {} password
+msg_subscribe WATER password {}  ; # password 
 
 vwait forever
