@@ -6,10 +6,9 @@ if [ -f $HOME/apikey ] ; then MODE=client
 else MODE=hub; fi
 
 SCRIPT_DIR=$(dirname $0)
-cd $SCRIPT_DIR
 
-SERVICE=tpwater
-SERVICE_EXE=tpwater.tcl
+SERVICE=tpwater-$MODE
+SERVICE_EXE=$SERVICE.tcl
 RUN_SERVICE=$SCRIPT_DIR/$MODE/$SERVICE_EXE
 
 LOG_DATE=$(date +%Y%m%d)
@@ -59,8 +58,11 @@ case $CMD in
         fi
         ;;
     stop)
-        kill $(cat $PID_FILE)
-        rm  $PID_FILE
+        pid=$(cat $PID_FILE 2> /dev/null)
+        if [ "$pid" != "" ] ; then
+            kill $pid
+        fi
+        rm  -f $PID_FILE
         echo $(date) STOPED | tee -a  $LOG_FILE 1>&2
         ;;
     kill)
