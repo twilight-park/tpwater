@@ -16,15 +16,17 @@ wapp-route GET /press {
         return
     }
 
-    if { $b in $::outputs } {
-        set state [$b read]
-        set state [expr !$state]
-        $b write $state
-        set ::$b $state
-        msg_set WATER $b $state {} async
-    } else {
-         msg_set WATER $b:request $state {} async
-     }
+    try {
+        if { $b in $::outputs } {
+            set state [$b read]
+            set state [expr !$state]
+            $b write $state
+            set ::$b $state
+            msg_set WATER $b $state {} async
+        } else {
+             msg_set WATER $b:request $state {} async
+        }
+    } on error e { print $e }
 }
 
  wapp-start [list -server $ADDR -nowait]

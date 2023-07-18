@@ -195,12 +195,49 @@ proc subscribe-to-names { var args } {
     }
 }
 
-proc password { var args } {
+proc passwords { var args } {
     upvar $var value
     set passwords [value-decode $value]
+    print Setting passwords
     foreach { hash auth user } $passwords {
         dict set ::password $hash "$auth $user"
         dict set ::password $user "$auth $hash"
+    }
+}
+
+proc init-cached-value { name variable code } {
+    try {
+        set ::$variable [cat ../cache/$variable]
+    } on error e { print $e }
+    msg_subscribe WATER $name $variable [list cache-value $variable $code]
+}
+
+proc init-cached-base64-value { name variable { code {} } } {
+    try {
+        set ::$variable [cat ../cache/$variable]
+        value-md5sum ::$variable
+        if { $code ne {} } {
+            print EVAL ON INIT
+            print eval $code ::$variable
+            eval $code ::$variable
+        }
+    } on error e { print $e }
+
+    msg_subscribe WATER $name $variable [list cache-base64-value $variable $code]
+}
+
+proc cache-value { name code args } {
+    echo [set ::$name] > ../cache/$name
+    if { $code ne {} } {
+        eval $code ::$name
+    }
+}
+
+proc cache-base64-value { name code args } {
+    echo [set ::$name] > ../cache/$name
+    value-md5sum ::$name
+    if { $code ne {} } {
+        eval $code ::$name
     }
 }
 
@@ -210,9 +247,11 @@ msg_apikey WATER $apikey
 
 msg_subscribe WATER names {} subscribe-to-names
 
-msg_subscribe WATER $apikey config reconfig
-msg_subscribe WATER status-page status-page:base64 value-md5sum
-msg_subscribe WATER  login-page  login-page:base64 value-md5sum
-msg_subscribe WATER password password:base64 password 
+init-cached-value names names subscribe-to-names
+
+init-cached-base64-value     $apikey             config reconfig
+init-cached-base64-value    password    password:base64 passwords
+init-cached-base64-value status-page status-page:base64 
+init-cached-base64-value  login-page  login-page:base64 
 
 vwait forever
