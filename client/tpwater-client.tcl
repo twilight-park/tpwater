@@ -198,7 +198,6 @@ proc subscribe-to-names { var args } {
 proc passwords { var args } {
     upvar $var value
     set passwords [value-decode $value]
-    print Setting passwords
     foreach { hash auth user } $passwords {
         dict set ::password $hash "$auth $user"
         dict set ::password $user "$auth $hash"
@@ -217,7 +216,6 @@ proc init-cached-base64-value { name variable { code {} } } {
         set ::$variable [cat ../cache/$variable]
         value-md5sum ::$variable
         if { $code ne {} } {
-            print EVAL ON INIT
             print eval $code ::$variable
             eval $code ::$variable
         }
