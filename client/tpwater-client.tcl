@@ -219,7 +219,6 @@ proc init-cached-base64-value { name variable { code {} } } {
         set ::$variable [cat $::script_dir/../cache/$variable]
         value-md5sum ::$variable
         if { $code ne {} } {
-            print eval $code ::$variable
             eval $code ::$variable
         }
     } on error e { print $e }
