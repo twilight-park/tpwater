@@ -1,8 +1,12 @@
 
 package require jbr::string
 
+proc is-localhost? {} {
+    return [string starts-with [wapp-param HTTP_HOST] "localhost:"]
+}
+
 proc check-auth { page } {
-    if { [string starts-with [wapp-param HTTP_HOST] "localhost:"] } {
+    if { [is-localhost?] } {
         return true
     }
         

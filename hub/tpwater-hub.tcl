@@ -15,8 +15,8 @@ set TPWATER $HOME/tpwater
 
 ::tcl::tm::path add $HOME/lib/tcl8/site-tcl
 
-#package require jbr::msg
-source ../pkg/jbr.tcl/msg/msg.tcl
+package require jbr::msg
+# source ../pkg/jbr.tcl/msg/msg.tcl
 
 package require jbr::unix
 package require jbr::with

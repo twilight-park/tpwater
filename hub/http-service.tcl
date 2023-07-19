@@ -2,7 +2,8 @@
 package require jbr::unix
 package require jbr::with
 package require jbr::dict
-package require jbr::template
+# package require jbr::template
+source ../pkg/jbr.tcl/template.tcl
 package require jbr::seconds
 
 source pkg/wapp/wapp.tcl

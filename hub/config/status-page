@@ -130,10 +130,12 @@
             &nbsp:&nbsp
             <text id=spinner>spinner</text>
         </h4>
-        <span>
-            &nbsp
-            <button onClick='logout()'>Logout</button>
-        </span>
+        [? [!is-localhost?] "" : {
+            <span>
+                &nbsp
+                <button onClick='logout()'>Logout</button>
+            </span>
+        }]
     </div>
     <br>
     <br>
