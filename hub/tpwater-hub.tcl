@@ -126,7 +126,6 @@ msg_srvproc WATER rec { seconds args } {
         set names  [dict get [set ::$apikey] names]
         # print $sock $apikey $config
 
-        print record-$config $config $seconds {*}$args
         record-$config $config $seconds {*}$args
 
         try {
