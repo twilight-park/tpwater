@@ -29,6 +29,7 @@ source $script_dir/devices/ADS1115.tcl
 source $script_dir/devices/MCP342x.tcl
 source $script_dir/devices/gpio-[run uname -m].tcl
 
+source $script_dir/sim-status.tcl
 source $script_dir/channel.tcl
 
 proc configure { config } {
@@ -253,5 +254,11 @@ init-cached-base64-value     $apikey             config reconfig
 init-cached-base64-value    password    password:base64 passwords
 init-cached-base64-value status-page status-page:base64 
 init-cached-base64-value  login-page  login-page:base64 
+
+proc sim-status {} {
+    msg_cmd WATER "radio [get-sim-status]" 0 nowait
+}
+
+every 60000 sim-status
 
 vwait forever
