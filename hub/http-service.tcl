@@ -21,7 +21,7 @@ wapp-route GET /query/log/start/end {
     timer query start
 
     wapp-mimetype application/json
-    set table $log
+    set table waterplant
 
     if { $start eq "" } {
         return

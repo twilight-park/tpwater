@@ -15,8 +15,8 @@ set TPWATER $HOME/tpwater
 
 ::tcl::tm::path add $HOME/lib/tcl8/site-tcl
 
-package require jbr::msg
-# source ../pkg/jbr.tcl/msg/msg.tcl
+# package require jbr::msg
+source ../pkg/jbr.tcl/msg/msg.tcl
 
 package require jbr::unix
 package require jbr::with
@@ -92,6 +92,7 @@ foreach config [glob -directory $script_dir/config -tails *] {
                 lappend ::outputs $name
             }
         }
+        dict set configuration config [file rootname [file tail $config]]
         set ::$apikey $configuration
         msg_publish WATER $apikey $config:base64
         dict set ::$apikey names $_names
@@ -103,6 +104,8 @@ set last 0
 set late true
 
 msg_srvproc WATER rec { seconds args } {
+    upvar sock sock
+
     try {
         set now [clock seconds]
 
@@ -118,10 +121,12 @@ msg_srvproc WATER rec { seconds args } {
         set ::last $seconds
         set ::late false
 
-        record $seconds {*}$args
+        set config [dict get [set ::[msg_getkey WATER $sock]] config]
+        set names  [dict get [set ::[msg_getkey WATER $sock]] names]
 
-        upvar sock sock
-        set names [dict get [set ::[msg_getkey WATER $sock]] names]
+        # print record-$config $config $seconds {*}$args
+        record-$config $config $seconds {*}$args
+
         try {
             msg_setting $sock
             foreach name $names value $args {
