@@ -71,13 +71,14 @@ proc configure { config } {
                     lappend ::inputs $name
                     lappend ::devices $dev
 
+                    $dev function $channel $mode
                     channel create $name $name $dev $channel 0
                   }
                 }
             }
             $name config $params
             msg_subscribe WATER $name 
-            if { [$name get mode] eq "out" } {
+            if { [$name get mode] eq "output" } {
                 lappend ::outputs $name
                 msg_subscribe WATER $name:request {} "set-state $name"
             }
@@ -191,6 +192,7 @@ proc run { args } {
 proc subscribe-to-names { var args } {
     upvar $var value
     foreach name $value {
+        print msg_subscribe WATER $name
         msg_subscribe WATER $name
     }
 }

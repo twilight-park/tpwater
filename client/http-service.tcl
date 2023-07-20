@@ -17,6 +17,7 @@ wapp-route GET /press {
     }
 
     try {
+
         if { $b in $::outputs } {
             set state [$b read]
             set state [expr !$state]
@@ -24,7 +25,9 @@ wapp-route GET /press {
             set ::$b $state
             msg_set WATER $b $state {} async
         } else {
-             msg_set WATER $b:request $state {} async
+            set state [set ::$b]
+            set state [expr !$state]
+            msg_set WATER $b:request $state {} async
         }
     } on error e { print $e }
 }

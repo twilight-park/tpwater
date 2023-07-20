@@ -3,24 +3,32 @@ package require TclOO
 
 namespace eval ::gpio {}
 namespace eval ::gpio::gpio {
-    set PINMAP { 18 31 6 33 7 35 5 37 }
+    set PINMAP {  6 31 13 33 19 35 26 37 }
 
 	oo::class create gpio {
 
 		constructor {} {
-			variable state
-            foreach { pin p } $::gpio::gpio::PINMAP { dict set state $pin 0 }
+        }
+
+        method function { pin mode } {
+            piio function $pin $mode
         }
 
         method write { pin st } {
 			variable state
 
-            print set $pin=$st
+
+            print piio output $pin $st
+            piio output $pin $st
             dict set state $pin $st
+            return $st
         }
         method read { pin } { 
 			variable state
-            print get $pin
+            print set st [piio input $pin]
+            set st [piio input $pin]
+            dict set state $pin $st
+            return $st
         }
     }
 }
