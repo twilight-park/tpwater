@@ -121,6 +121,7 @@ case $CMD in
         sudo apt -y install unclutter
         sudo apt -y install chromium
 
+        sudo apt -y install vim
         sudo apt -y install mosh
         sudo apt -y install screen
         sudo apt -y install i2c-tools
@@ -152,6 +153,7 @@ case $CMD in
         mkdir -p  $HOME/tpwater/pkg
         cd $HOME/tpwater/pkg
 
+        git clone git@github.com:jbroll/wapp.git
         git clone git@github.com:jbroll/jbr.tcl.git
         cd jbr.tcl
 

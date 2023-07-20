@@ -27,7 +27,7 @@ source $script_dir/http-service.tcl
 
 source $script_dir/devices/ADS1115.tcl
 source $script_dir/devices/MCP342x.tcl
-source $script_dir/devices/gpio.tcl
+source $script_dir/devices/gpio-[run uname -m].tcl
 
 source $script_dir/channel.tcl
 
