@@ -84,7 +84,7 @@ case $CMD in
         ;;
 
     crontab)
-        cat share/scripts/crontab | crontab
+        cat $SCRIPT_DIR/share/scripts/crontab | crontab
         crontab -l
         ;;
 esac

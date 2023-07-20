@@ -6,4 +6,4 @@
 @pcmanfm --desktop --profile LXDE-pi
 
 @unclutter -idle
-@chromium --kiosk --noerrdialogs --disable-infobars  -disable-translate https://localhost:7777/status
+@chromium --kiosk --noerrdialogs --disable-infobars  -disable-translate http://localhost:7777/status
