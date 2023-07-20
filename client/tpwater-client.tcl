@@ -208,14 +208,14 @@ proc passwords { var args } {
 
 proc init-cached-value { name variable code } {
     try {
-        set ::$variable [cat ../cache/$variable]
+        set ::$variable [cat $::script_dir/../cache/$variable]
     } on error e { print $e }
     msg_subscribe WATER $name $variable [list cache-value $variable $code]
 }
 
 proc init-cached-base64-value { name variable { code {} } } {
     try {
-        set ::$variable [cat ../cache/$variable]
+        set ::$variable [cat $::script_dir/../cache/$variable]
         value-md5sum ::$variable
         if { $code ne {} } {
             print eval $code ::$variable
@@ -227,14 +227,14 @@ proc init-cached-base64-value { name variable { code {} } } {
 }
 
 proc cache-value { name code args } {
-    echo [set ::$name] > ../cache/$name
+    echo [set ::$name] > $::script_dir/../cache/$name
     if { $code ne {} } {
         eval $code ::$name
     }
 }
 
 proc cache-base64-value { name code args } {
-    echo [set ::$name] > ../cache/$name
+    echo [set ::$name] > $::script_dir/../cache/$name
     value-md5sum ::$name
     if { $code ne {} } {
         eval $code ::$name
