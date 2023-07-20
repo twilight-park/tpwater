@@ -73,7 +73,7 @@ proc ATparse { status line } {
     set line [string map { { } {} {"} {} } $line]
     switch -glob $line {
         +COPS:* {
-           set status [dict replace $status {*}[zip {- - operator - } [split [lindex [split $line :] 1] ,]]]
+           set status [dict replace $status {*}[zip {- - op - } [split [lindex [split $line :] 1] ,]]]
         }
         +CSQ:* {
            set status [dict replace $status \
@@ -83,7 +83,7 @@ proc ATparse { status line } {
         * { print Huh? $line}
     }
 
-    return [dict remove $status -]
+    return [dict remove $status - quality]
 }
 
 proc get-sim-status {} {
