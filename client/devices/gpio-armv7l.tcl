@@ -18,14 +18,12 @@ namespace eval ::gpio::gpio {
 			variable state
 
 
-            print piio output $pin $st
             piio output $pin $st
             dict set state $pin $st
             return $st
         }
         method read { pin } { 
 			variable state
-            print set st [piio input $pin]
             set st [piio input $pin]
             dict set state $pin $st
             return $st
