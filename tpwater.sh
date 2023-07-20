@@ -29,7 +29,7 @@ case $CMD in
         tail -f "$LOG_FILE"
         ;;
     stat)
-        RUN=$(ps ax | awk '/awk/ { next } /tpwater_EXE/ { print $6 }')
+        RUN=$(ps ax | awk '/awk/ { next } /'"tclsh .*$SERVICE_EXE"'/ { print $6 }')
         PID=$(cat 2> /dev/null $PID_FILE)
         if [ "$PID" = "" ] ; then
             STAT="NoPID"
@@ -67,9 +67,9 @@ case $CMD in
         echo $(date) STOPED | tee -a  $LOG_FILE 1>&2
         ;;
     kill)
-        pid=$(ps ax | grep  $SERVICE_EXE | grep -v grep | awk '{ print $1 }')
-        if [ "$pid" != "" ] ; then
-            kill $pid
+        PID=$(ps ax | awk '/awk/ { next } /'"tclsh .*$SERVICE_EXE"'/ { print $1 }')
+        if [ "$PID" != "" ] ; then
+            kill $PID
             rm  -f $PID_FILE
             echo $(date) KILLED  | tee -a $LOG_FILE 1>&2
         else

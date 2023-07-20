@@ -256,6 +256,8 @@ init-cached-base64-value status-page status-page:base64
 init-cached-base64-value  login-page  login-page:base64 
 
 proc sim-status {} {
+
+    print msg_cmd WATER "radio [get-sim-status]" 0 nowait
     msg_cmd WATER "radio [get-sim-status]" 0 nowait
 }
 
