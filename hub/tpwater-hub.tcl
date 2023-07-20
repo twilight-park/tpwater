@@ -87,7 +87,7 @@ foreach config [glob -directory $script_dir/config -tails *] {
             channel create $name $name
             $name config $values
             msg_publish WATER $name {} ; # "print-var $name"
-            if { [$name get mode] eq "out" } {
+            if { [$name get mode] eq "output" } {
                 msg_publish WATER $name:request {} ; # "print-var $name"
                 lappend ::outputs $name
             }
@@ -121,10 +121,12 @@ msg_srvproc WATER rec { seconds args } {
         set ::last $seconds
         set ::late false
 
-        set config [dict get [set ::[msg_getkey WATER $sock]] config]
-        set names  [dict get [set ::[msg_getkey WATER $sock]] names]
+        set apikey [msg_getkey WATER $sock]
+        set config [dict get [set ::$apikey] config]
+        set names  [dict get [set ::$apikey] names]
+        # print $sock $apikey $config
 
-        # print record-$config $config $seconds {*}$args
+        print record-$config $config $seconds {*}$args
         record-$config $config $seconds {*}$args
 
         try {
