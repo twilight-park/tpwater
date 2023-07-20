@@ -101,6 +101,21 @@ set buttons $names
 set last 0
 set late true
 
+proc get-config-name { sock } {
+    # print $sock $apikey $config
+    set apikey [msg_getkey WATER $sock]
+    return [dict get [set ::$apikey] config]]
+}
+
+msg_srvproc WATER radio { time_measured args } {
+    upvar sock sock
+    set apikey [msg_getkey WATER $sock]
+    set config [dict get [set ::$apikey] config]
+
+    print RADIO $config $args
+    db:record radio [clock seconds] station golfcourse {*}$args
+}
+
 msg_srvproc WATER rec { seconds args } {
     upvar sock sock
 
@@ -122,7 +137,6 @@ msg_srvproc WATER rec { seconds args } {
         set apikey [msg_getkey WATER $sock]
         set config [dict get [set ::$apikey] config]
         set names  [dict get [set ::$apikey] names]
-        # print $sock $apikey $config
 
         record-$config $config $seconds {*}$args
 

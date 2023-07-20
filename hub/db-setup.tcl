@@ -21,18 +21,25 @@ set schema {
         { time_recorded integer }
         { golf real }
     }
+
+    radio {
+        { time_measured integer }
+        { time_recorded integer }
+        { station       string  }
+        { op            string  }
+        { db            integer }
+    }
 }
 
 migrate-db db $schema
 
-proc record { table time_measured args } {
-    print [clock format [clock seconds] -format "%y-%m-%d %H:%M:%S"] $time_measured $flow $tank $golf $thrd
+proc db:record { table time_measured args } {
     set time_recorded [clock seconds]
-    dict with $args template:subst {
-        sql db { insert into :table 
-               (  time_recorded,  time_measured, [!join [!dict keys] ,]) 
-        values ( :time_recorded, :time_measured, [!join [: key [!dict keys] ":$!key"] ,] ) }
-    }
+    dict with args [template:subst {
+        sql db { insert into $!table
+               (  time_recorded,  time_measured,  [!join [!dict keys $!args] ",  "])
+        values ( :time_recorded, :time_measured, [!join [: key [!dict keys $!args] { :$!key }]  ", "] ) }
+    }]
 }
 
 proc record-waterplant { table time_measured flow tank thrd } {

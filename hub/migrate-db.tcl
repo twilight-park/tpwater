@@ -38,6 +38,8 @@ proc migrate-db { db schema } {
     foreach table $inBoth {
         migrate-table  db $table [dict get $schema $table]
     }
+
+    print [join [db tables] \n]
 }
 
 
