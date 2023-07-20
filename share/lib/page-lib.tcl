@@ -1,7 +1,7 @@
 
 wapp-route GET /favicon.ico {
     wapp-mimetype image/x-icon
-    try { wapp [bcat $script_dir/..static/favicon.ico] } on error e { print $e }
+    try { wapp [bcat $::script_dir/..static/favicon.ico] } on error e { print $e }
 }
 
 wapp-route GET /login   { http-page login }
