@@ -2,8 +2,6 @@
 package require jbr::unix
 package require jbr::with
 package require jbr::dict
-package require jbr::template
-package require jbr::template_macro
 package require jbr::seconds
 
 source $script_dir/../pkg/wapp/wapp.tcl
@@ -15,9 +13,6 @@ source $script_dir/../share/lib/page-lib.tcl
 
 source $script_dir/../pkg/json/json.tcl
 
-
-template-environment create T
-T macros $script_dir/../share/html
 
 wapp-route GET /query/log/start/end {
     wapp-cache-control no-cache
