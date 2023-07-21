@@ -11,7 +11,6 @@ set ADDR tcp!data.rkroll.com!$WEB_PORT
 set env(WATER) .:$MSG_PORT
 
 set HOME $env(HOME)
-set TPWATER $HOME/tpwater
 
 ::tcl::tm::path add $HOME/lib/tcl8/site-tcl
 
@@ -138,7 +137,7 @@ msg_srvproc WATER rec { seconds args } {
         set config [dict get [set ::$apikey] config]
         set names  [dict get [set ::$apikey] names]
 
-        record-$config $config $seconds {*}$args
+        db:record $config $seconds {*}[zip $names $args]
 
         try {
             msg_setting $sock
