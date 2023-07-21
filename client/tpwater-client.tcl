@@ -93,7 +93,7 @@ proc set-state { name var args } {
     upvar $var value
     $name write $value
     set ::$name $value
-    msg_set WATER $name $value {} async
+    try { msg_set WATER $name $value {} async } on error e {}
 }
 
 proc reconfig { args } {
@@ -256,9 +256,7 @@ init-cached-base64-value status-page status-page:base64
 init-cached-base64-value  login-page  login-page:base64 
 
 proc sim-status {} {
-
-    print msg_cmd WATER "radio [get-sim-status]" 0 nowait
-    msg_cmd WATER "radio [clock seconds] [get-sim-status]" 0 nowait
+    try { msg_cmd WATER "radio [clock seconds] [get-sim-status]" 0 nowait } on error e {}
 }
 
 every 60000 sim-status
