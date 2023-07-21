@@ -69,7 +69,7 @@ proc get? { name } {
 }
 
 proc http-page { page { mime text/html } { 
-        code { wapp [template:subst [value-decode [set ::$page-page:base64]]] } 
+        code { wapp [T subst [value-decode [set ::$page-page:base64]]] } 
     } 
 } {
     try { 
