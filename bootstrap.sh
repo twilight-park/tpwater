@@ -33,10 +33,9 @@ case $CMD in
         ;;
 esac
 
-
 case $CMD in 
     auth)
-        $0 auth $PI
+        ssh-auth $PI
         ;;
     setup)
         $0 copy $PI
@@ -83,8 +82,8 @@ case $CMD in
 
         if [ "$done" = "" ] ; then
             echo setting metric
-            echo interface $cell | ssh $PI tee -a $DHCPCDCONF
-            echo metric 2000    | ssh $PI tee -a $DHCPCDCONF
+            echo interface $cell | tee -a $DHCPCDCONF
+            echo metric 2000    | tee -a $DHCPCDCONF
         fi
         echo metric already set
         ;;
@@ -95,6 +94,16 @@ case $CMD in
         $0 cell-down
         $0 cell-up
         /usr/sbin/route -n
+        ;;
+    firewall)
+        tpwater/client/scripts/firewall "$@"
+        ;;
+    crontab)
+        case $1 in
+          up) cat $HOME/tpwater/share/scripts/crontab | crontab ;;
+          down) echo | crontab ;;
+        esac
+        crontab -l
         ;;
     sudoers)
         ssh $PI "echo 'john ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/john; sudo chmod go-wr /etc/sudoers.d/john"
@@ -121,7 +130,6 @@ case $CMD in
         sudo apt -y install unclutter
         sudo apt -y install chromium
 
-        sudo apt -y install vim
         sudo apt -y install mosh
         sudo apt -y install screen
         sudo apt -y install i2c-tools
@@ -153,7 +161,6 @@ case $CMD in
         mkdir -p  $HOME/tpwater/pkg
         cd $HOME/tpwater/pkg
 
-        git clone git@github.com:jbroll/wapp.git
         git clone git@github.com:jbroll/jbr.tcl.git
         cd jbr.tcl
 
@@ -169,12 +176,12 @@ case $CMD in
         sudo apt -y install tcl-dev libi2c-dev autoconf
         cd piio
         autoconf
-        ./configure --prefix=$HOME/lib/tcl8/site-tcl --exec_prefix=$HOME/lib/tcl8/site-tcl
+        ./configure --prefix=$HOME/lib/tcl8 --exec_prefix=$HOME/lib/tcl8
         make
         make install
         ;;
     backup)
-        client/scripts/pp-back client/scripts/data.rkroll.com
+        $HOME/tpwater/client/scripts/pp-back $HOME/tpwater/client/scripts/data.rkroll.com
         ;;
     restore)
         FROM=raspberrypi
@@ -188,6 +195,11 @@ case $CMD in
 esac
 
 exit
+
+    screen /dev/ttyS0 115200
+    AT+CGDCONT=1,"IP","simbase"  # From Simbase Docs
+    AT+CUSBPIDSWITCH=9011,1,1
+    AT+CRESET
 
 qmi:
 	sudo apt -y update && sudo apt -y install libqmi-utils udhcpc
