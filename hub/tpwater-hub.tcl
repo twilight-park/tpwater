@@ -111,8 +111,7 @@ msg_srvproc WATER radio { time_measured args } {
     set apikey [msg_getkey WATER $sock]
     set config [dict get [set ::$apikey] config]
 
-    print RADIO $config $args
-    db:record radio [clock seconds] station golfcourse {*}$args
+    db:record radio [clock seconds] station $config {*}$args
 }
 
 msg_srvproc WATER rec { seconds args } {

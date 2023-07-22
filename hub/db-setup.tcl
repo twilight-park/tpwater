@@ -34,7 +34,7 @@ set schema {
 migrate-db db $schema
 
 proc db:record { table time_measured args } {
-    print [clock format [clock seconds] -format "%y-%m-%d %H:%M:%S"] $table $time_measured $args 
+    print [clock format [clock seconds] -format "%y-%m-%d %H:%M:%S"] db:record $table $time_measured $args 
     set time_recorded [clock seconds]
     dict with args [template:subst {
         sql db { insert into $!table
