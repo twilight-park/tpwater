@@ -173,6 +173,9 @@ case $CMD in
         make
         make install
         ;;
+    backup)
+        client/scripts/pp-back client/scripts/data.rkroll.com
+        ;;
     restore)
         FROM=raspberrypi
 
