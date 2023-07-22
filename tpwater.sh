@@ -34,7 +34,7 @@ case $CMD in
         if [ "$PID" = "" ] ; then
             STAT="NoPID"
         else
-            kill -0 "$PID"
+            kill -0 "$PID" 2> /dev/null
             if [ $? = "0" ] ; then
                 STAT=OK
             else
