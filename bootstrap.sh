@@ -26,7 +26,7 @@ cell_interface() {
 }
 
 case $CMD in 
-    auth|copy|remote|setup|keys|restore)
+    auth|copy|remote|setup|gitkeys|keys|restore)
         if [ "$1" != "" ] ; then
             PI=$1; shift
         fi
@@ -43,20 +43,41 @@ case $CMD in
         $0 remote $PI cell-down
         $0 remote $PI cell-metric
 
-        $0 remote $PI install
+        $0 keys $PI
+        $0 gitkeys $PI
+        ;;
+    install)
+        sudo apt -y upgrade
+        sudo apt -y update
+        sudo apt -y autoremove
 
-        $0 remote $PI cell-routes
+        sudo apt -y install unclutter
+        sudo apt -y install chromium
 
-        ssh $PI ./scripts/firewall up
-        ssh $PI ./scripts/routes wifi
+        sudo apt -y install mosh
+        sudo apt -y install screen
+        sudo apt -y install i2c-tools
 
-        $0 $PI keys
-        $0 $PI restore
+        yes | sudo apt -y install iptables-persistent
 
-        yes | $0 $PI remote $PI install
-        ssh $PI ./routes cell
+        $0 i2c
+        $0 tcl
 
-        ssh $PI sudo ldto enable i2c-ao
+        $0 tpwater
+        ( cd tpwater ; git checkout rev2 )
+        ( cd tpwater ; mkdir -p cache)
+        $0 piio
+        $0 jbr
+
+        $0 autostart
+
+        sudo apt -y autoremove
+        ;;
+    post)
+        $0 cell-routes
+
+        ./tpwater/client/scripts/firewall up
+        ./tpwater/client/scripts/routes cell
         ;;
 
     copy)
@@ -108,6 +129,13 @@ case $CMD in
     sudoers)
         ssh $PI "echo 'john ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/john; sudo chmod go-wr /etc/sudoers.d/john"
         ;;
+
+    gitkeys)
+        ssh $PI bash -c "echo 'Host    github.com'                            >> .ssh/config"
+        ssh $PI bash -c "echo ' IdentityFile /home/john/.ssh/john@rkroll.com' >> .ssh/config"
+
+        scp $HOME/.ssh/john@rkroll.com* $PI:.ssh/.
+        ;;
     keys)
         ssh $PI bash -c "
             cd .ssh; 
@@ -122,31 +150,9 @@ case $CMD in
     remote)
         ssh $PI ./bootstrap.sh "$@"
         ;;
-    install)
-        sudo apt -y upgrade
-        sudo apt -y update
-        sudo apt -y autoremove
-
-        sudo apt -y install unclutter
-        sudo apt -y install chromium
-
-        sudo apt -y install mosh
-        sudo apt -y install screen
-        sudo apt -y install i2c-tools
-
-        yes | sudo apt -y install iptables-persistent
-
-        $0 i2c
-        $0 tcl
-
-        $0 tpwater
-        $0 piio
-        $0 jbr
-        ;;
-
     autostart)
         mkdir -p .config/lxsession/LXDE-pi
-        cp tpwater/client/scripts//autostart .config/lxsession/LXDE-pi/autostart 
+        cp tpwater/client/scripts/autostart .config/lxsession/LXDE-pi/autostart 
         ;;
 
     tcl)
@@ -167,6 +173,12 @@ case $CMD in
         ./configure 
         make install-links
         ;;
+    wapp)
+        mkdir -p  $HOME/tpwater/pkg
+        cd $HOME/tpwater/pkg
+
+        git clone git@github.com:jbroll/wapp.git
+	;;
     piio)
         mkdir -p  $HOME/tpwater/pkg
         cd $HOME/tpwater/pkg
@@ -177,11 +189,9 @@ case $CMD in
         cd piio
         autoconf
         ./configure --prefix=$HOME/lib/tcl8 --exec_prefix=$HOME/lib/tcl8
+        # ./configure --prefix=$HOME/lib/tcl8/site-tcl --exec_prefix=$HOME/lib/tcl8/site-tcl
         make
         make install
-        ;;
-    backup)
-        $HOME/tpwater/client/scripts/pp-back $HOME/tpwater/client/scripts/data.rkroll.com
         ;;
     restore)
         FROM=raspberrypi
@@ -196,10 +206,10 @@ esac
 
 exit
 
-    screen /dev/ttyS0 115200
+	screen /dev/ttyUSB2 115200
     AT+CGDCONT=1,"IP","simbase"  # From Simbase Docs
     AT+CUSBPIDSWITCH=9011,1,1
-    AT+CRESET
+	AT+CRESET
 
 qmi:
 	sudo apt -y update && sudo apt -y install libqmi-utils udhcpc
@@ -226,11 +236,10 @@ qmi:
 
 
 
-	screen /dev/ttyUSB2 115200
 	
 Serail Number 	AT+CGSN
 
-Set APN		AT+CGDCONT=1,"IP","simbase","0.0.0.0",0,0
+Set APN	AT+CGDCONT=1,"IP","simbase","0.0.0.0",0,0
 		AT+CGDCONT=?
 		AT+CGDCONT=1,"IP","simbase"
 		AT+CGDCONT=1,"IPV4V6","simbase"
@@ -240,7 +249,6 @@ Set APN		AT+CGDCONT=1,"IP","simbase","0.0.0.0",0,0
         AT+CGDCONT=1,"IP","simbase"  # From Simbase Docs
 
 
-Reset		AT+CRESET
 
 
 Status:
