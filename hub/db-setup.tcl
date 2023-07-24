@@ -14,12 +14,19 @@ set schema {
         { time_recorded integer }
         { flow real }
         { tank real }
+        { chan2 real }
+        { chan3 real }
         { thrd real }
     }
    golfcourse  {
         { time_measured integer }
         { time_recorded integer }
         { golf real }
+    }
+   thirdlevel  {
+        { time_measured integer }
+        { time_recorded integer }
+        { thrd real }
     }
 
     radio {
