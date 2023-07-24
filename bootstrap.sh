@@ -1,5 +1,11 @@
 #!/bin/bash
 # 
+# UI Setup 
+#
+#   Raspberry Pi Configuration --> System --> chnage hostname
+#   Raspberry Pi Configuration --> Interfaces --> i2c
+#   Raspberry Pi Configuration --> Interfaces --> serail
+#   Raspberry Pi Configuration --> Interfaces --> no console
 
 if [ "$1" != "" ] ; then
     CMD=$1; shift
@@ -45,6 +51,7 @@ case $CMD in
 
         $0 keys $PI
         $0 gitkeys $PI
+        scp $HOME/.gitconfig $PI:
         ;;
     install)
         sudo apt -y upgrade
@@ -67,6 +74,7 @@ case $CMD in
         ( cd tpwater ; git checkout rev2 )
         ( cd tpwater ; mkdir -p cache)
         $0 piio
+        $0 wapp
         $0 jbr
 
         $0 autostart
@@ -130,8 +138,10 @@ case $CMD in
         ;;
 
     gitkeys)
-        ssh $PI bash -c "echo 'Host    github.com'                            >> .ssh/config"
-        ssh $PI bash -c "echo ' IdentityFile /home/john/.ssh/john@rkroll.com' >> .ssh/config"
+        echo 'Host    github.com'                               | ssh $PI "tee -a .ssh/config"
+        echo '    IdentityFile /home/john/.ssh/john@rkroll.com' | ssh $PI "tee -a .ssh/config"
+
+        exit
 
         scp $HOME/.ssh/john@rkroll.com* $PI:.ssh/.
         ;;
