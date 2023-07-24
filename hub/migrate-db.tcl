@@ -37,7 +37,7 @@ proc migrate-db { db schema } {
         migrate-table  db $table [dict get $schema $table]
     }
 
-    log  [join [db tables] \n]
+    # log  [join [db tables] \n]
 }
 
 

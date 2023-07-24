@@ -1,9 +1,8 @@
 
 package require jbr::unix
-package require jbr::print
 
 proc log { args } {
-    set LOGFILE $::LOGPATH/[clock format [clock seconds] -format "%Y%m%d"]-$::LOGTAIL.llog
+    set LOGFILE $::LOGPATH/[clock format [clock seconds] -format "%Y%m%d"]-$::LOGTAIL.log
 
     set msg "[clock format [clock seconds]] [concat $args]"
     echo $msg >> $LOGFILE
