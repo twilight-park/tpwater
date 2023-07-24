@@ -83,11 +83,14 @@ case $CMD in
     post)
         $0 cell-routes
         $0 firewall up
-	$0 crontab up
+        $0 crontab up
         $0 autostart
+        $0 rc.local
 
 
-	./tpwater/share/scripts/apikey.sh > ~/apikey
+        if [ ! -f $HOME/apikey ] ; then
+            ./tpwater/share/scripts/apikey.sh > $HOME/apikey
+        fi
         ;;
 
     copy)
@@ -136,6 +139,14 @@ case $CMD in
         esac
         crontab -l
         ;;
+    rc.local)
+        if [ "$(grep tpwater /etc/rc.local)" = "" ] ; then
+            sudo sed -i '/^exit *$/i sudo -u john /home/john/tpwater/tpwater.sh start' /etc/rc.local
+        else
+            echo "rc.local already set"
+        fi
+        ;;
+
     sudoers)
         ssh $PI "echo 'john ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/john; sudo chmod go-wr /etc/sudoers.d/john"
         ;;
