@@ -81,5 +81,5 @@ proc http-page { page { mime text/html } {
         wapp-content-security-policy off
 
         eval $code
-    } on error e { print $e }
+    } on error e { log-error $e }
 }

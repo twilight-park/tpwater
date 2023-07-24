@@ -7,7 +7,7 @@ T macros $script_dir/../share/html
 
 wapp-route GET /favicon.ico {
     wapp-mimetype image/x-icon
-    try { wapp [bcat $::script_dir/../share/static/favicon.ico] } on error e { print $e }
+    try { wapp [bcat $::script_dir/../share/static/favicon.ico] } on error e { log-eror $e }
 }
 
 wapp-route GET /login   { http-page login }

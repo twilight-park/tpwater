@@ -23,6 +23,10 @@ package require jbr::filewatch
 
 source $script_dir/../share/lib/codec-lib.tcl
 
+set LOGPATH $::script_dir/../log
+set LOGTAIL [file rootname [file tail $::argv0]]
+
+source $script_dir/log.tcl
 source $script_dir/db-setup.tcl
 source $script_dir/http-service.tcl
 
@@ -37,14 +41,14 @@ proc config-read { config } {
 }
 
 proc reload-file { config } {
-    print reload file $config
+    log reload file $config
     set ::$config:base64 [config-read config/$config]
     set ::$config:md5sum [md5sum [set ::$config:base64]]
 }
 
 proc print-var { name varname args } {
     upvar $varname var
-    print print-var $name [set var] $args
+    log print-var $name [set var] $args
 }
 
 
@@ -101,7 +105,7 @@ set last 0
 set late true
 
 proc get-config-name { sock } {
-    # print $sock $apikey $config
+    # log $sock $apikey $config
     set apikey [msg_getkey WATER $sock]
     return [dict get [set ::$apikey] config]]
 }
@@ -122,12 +126,12 @@ msg_srvproc WATER rec { seconds args } {
 
         set delta [expr { abs($now - $seconds) }]
         if { $delta > 2 } {
-            print Oops $seconds : $delta
+            log Oops $seconds : $delta
         }
 
         set delta [expr { abs($seconds - $::last) }]
         if { $::last != 0 && $delta > 25 } {
-            print Dropped $delta seconds from $::last to $seconds
+            log Dropped $delta seconds from $::last to $seconds
         }
         set ::last $seconds
         set ::late false
@@ -146,7 +150,7 @@ msg_srvproc WATER rec { seconds args } {
         } finally {
             msg_setting {}
         }
-    } on error e { print $e }
+    } on error e { log-error $e }
 }
 
 proc check {} {
@@ -155,12 +159,12 @@ proc check {} {
     set delta [expr { abs($now - $::last) }]
 
     if { !$::late && $delta > 25 } {
-        print "Packet late $delta seconds at $now"
+        log "Packet late $delta seconds at $now"
         set ::late true
     }
 }
 
-print Global Names $::names
+log Global Names {*}$::names
 msg_publish WATER names
 msg_apikey WATER $apikeys
 msg_up WATER
