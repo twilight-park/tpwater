@@ -58,12 +58,13 @@ case $CMD in
         sudo apt -y update
         sudo apt -y autoremove
 
-        sudo apt -y install unclutter
-        sudo apt -y install chromium
 
         sudo apt -y install mosh
+	sudo apt -y install vim
         sudo apt -y install screen
         sudo apt -y install i2c-tools
+        sudo apt -y install chromium
+        sudo apt -y install unclutter
 
         yes | sudo apt -y install iptables-persistent
 
@@ -77,14 +78,14 @@ case $CMD in
         $0 wapp
         $0 jbr
 
-        $0 autostart
-
         sudo apt -y autoremove
         ;;
     post)
         $0 cell-routes
         $0 firewall up
 	$0 crontab up
+        $0 autostart
+
 
 	./tpwater/share/scripts/apikey.sh > ~/apikey
         ;;
