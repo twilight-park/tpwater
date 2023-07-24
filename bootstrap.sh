@@ -75,9 +75,8 @@ case $CMD in
         ;;
     post)
         $0 cell-routes
-
-        ./tpwater/client/scripts/firewall up
-        ./tpwater/client/scripts/routes cell
+        $0 firewall up
+	$0 crontab up
         ;;
 
     copy)
@@ -104,7 +103,7 @@ case $CMD in
         if [ "$done" = "" ] ; then
             echo setting metric
             echo interface $cell | tee -a $DHCPCDCONF
-            echo metric 2000    | tee -a $DHCPCDCONF
+            echo metric 2000     | tee -a $DHCPCDCONF
         fi
         echo metric already set
         ;;
