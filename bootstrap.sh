@@ -85,6 +85,8 @@ case $CMD in
         $0 cell-routes
         $0 firewall up
 	$0 crontab up
+
+	./tpwater/share/scripts/apikey.sh > ~/apikey
         ;;
 
     copy)
