@@ -29,7 +29,7 @@ wapp-route GET /press {
             set state [expr !$state]
             msg_set WATER $b:request $state {} async
         }
-    } on error e { print $e }
+    } on error e { log-error $e }
 }
 
  wapp-start [list -server $ADDR -nowait]

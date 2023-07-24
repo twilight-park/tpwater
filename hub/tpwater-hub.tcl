@@ -21,12 +21,12 @@ package require jbr::print
 package require jbr::string
 package require jbr::filewatch
 
-source $script_dir/../share/lib/codec-lib.tcl
-
 set LOGPATH $::script_dir/../log
 set LOGTAIL [file rootname [file tail $::argv0]]
 
-source $script_dir/log.tcl
+source $script_dir/../share/lib/log.tcl
+source $script_dir/../share/lib/codec-lib.tcl
+
 source $script_dir/db-setup.tcl
 source $script_dir/http-service.tcl
 

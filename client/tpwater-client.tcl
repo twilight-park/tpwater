@@ -12,7 +12,6 @@ lappend auto_path /usr/share/tcltk/tcllib1.20
 
 package require coroutine::auto
 
-package require jbr::print
 package require jbr::func
 package require jbr::with
 package require jbr::unix
@@ -22,6 +21,10 @@ set apikey [cat $HOME/apikey]
 
 set script_dir [file dirname $argv0]
 
+set LOGPATH $::script_dir/../log
+set LOGTAIL [file rootname [file tail $::argv0]]
+
+source $script_dir/../share/lib/log.tcl
 source $script_dir/../share/lib/codec-lib.tcl
 source $script_dir/http-service.tcl
 
@@ -34,7 +37,7 @@ source $script_dir/channel.tcl
 
 proc configure { config } {
     try {
-        print configure $config
+        log configure $config
 
         foreach { name params } $config {
             if { [string index $name 0] eq "#" } { continue }
@@ -86,7 +89,7 @@ proc configure { config } {
         }
 
         set ::devices [lsort -uniq $::devices]
-    } on error e { print $e }
+    } on error e { log-error $e }
 }
 
 proc set-state { name var args } {
@@ -103,7 +106,7 @@ proc reconfig { args } {
         cleanup
         configure $config
         readout
-    } on error e { print $e }
+    } on error e { log-error $e }
 }
 
 proc every {ms body} {
@@ -135,13 +138,13 @@ proc record { args } {
             lappend values $value
             set ::$name [$name scaled $value]
         }
-        print record [clock seconds] [zip $args $values]
+        log record [clock seconds] {*}[zip $args $values]
 
         try { msg_cmd WATER "rec [clock seconds] $values" 0 nowait 
         } on error e {
-            print $e
+            log-error $e
         }
-    } on error e { print record : $e }
+    } on error e { log-error record : $e }
 }
 
 proc unset? { name } {
@@ -168,7 +171,7 @@ proc cleanup {} {
         }
         
         unset? ::inputs
-    } on error e { print cleanup : $e }
+    } on error e { log-error cleanup : $e }
 }
 
 proc readout {} {
@@ -193,7 +196,7 @@ proc run { args } {
 proc subscribe-to-names { var args } {
     upvar $var value
     foreach name $value {
-        print msg_subscribe WATER $name
+        log msg_subscribe WATER $name
         msg_subscribe WATER $name
     }
 }
@@ -210,7 +213,7 @@ proc passwords { var args } {
 proc init-cached-value { name variable code } {
     try {
         set ::$variable [cat $::script_dir/../cache/$variable]
-    } on error e { print $e }
+    } on error e { log-error $e }
     msg_subscribe WATER $name $variable [list cache-value $variable $code]
 }
 
@@ -221,7 +224,7 @@ proc init-cached-base64-value { name variable { code {} } } {
         if { $code ne {} } {
             eval $code ::$variable
         }
-    } on error e { print $e }
+    } on error e { log-error $e }
 
     msg_subscribe WATER $name $variable [list cache-base64-value $variable $code]
 }
@@ -256,7 +259,7 @@ init-cached-base64-value  login-page  login-page:base64
 
 proc sim-status {} {
     try { msg_cmd WATER "radio [clock seconds] [get-sim-status]" 0 nowait } on error e {
-        print $e
+        log-error $e
     }
 }
 
