@@ -141,7 +141,7 @@ case $CMD in
         ;;
     rc.local)
         if [ "$(grep tpwater /etc/rc.local)" = "" ] ; then
-            sudo sed -i '/^exit *$/i sudo -u john /home/john/tpwater/tpwater.sh start' /etc/rc.local
+            sudo sed -i "/^exit 0 *$/i sudo -u john /home/john/tpwater/tpwater.sh start" /etc/rc.local
         else
             echo "rc.local already set"
         fi
