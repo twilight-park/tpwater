@@ -36,6 +36,11 @@ msg_server WATER
 msg_deny   WATER internettl.org
 msg_allow  WATER *
 
+proc every {ms body} {
+    after $ms [list after idle [namespace code [info level 0]]]
+    try $body
+}
+
 proc config-read { config } {
     return [value-encode [cat $config]]
 }
@@ -93,9 +98,12 @@ foreach config [glob -directory $script_dir/config -tails *] {
                 lappend ::outputs $name
             }
         }
-        dict set configuration config [file rootname [file tail $config]]
+        set configName [file rootname [file tail $config]]
+        dict set configuration config $configName
         set ::$apikey $configuration
         msg_publish WATER $apikey $config:base64
+        msg_publish WATER $configName:last
+        msg_publish WATER $configName:status
         dict set ::$apikey names $_names
     }
 }
@@ -140,6 +148,7 @@ msg_srvproc WATER rec { seconds args } {
         set config [dict get [set ::$apikey] config]
         set names  [dict get [set ::$apikey] names]
 
+        set ::$config $seconds
         db:record $config $seconds {*}[zip $names $args]
 
         try {
