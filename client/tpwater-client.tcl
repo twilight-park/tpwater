@@ -1,6 +1,8 @@
 #!/usr/bin/env tclsh
 #
 
+source stacktrace.tcl
+
 set env(WATER) data.rkroll.com:8001
 
 set HOME $env(HOME)
