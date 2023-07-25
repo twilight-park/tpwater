@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# export MSGDEBUG=1
+export MSGDEBUG=1
 
 if [ -f $HOME/apikey ] ; then MODE=client
 else MODE=hub; fi
