@@ -17,6 +17,11 @@ proc check-auth { page } {
 
     set authOk false
 
+    if { ![info exists ::password] } {
+        log No password file
+        return false
+    }
+
     if { $token ne {} } {
         set auth [dict get? $::password $token]
         if { $auth ne {} } {
@@ -73,7 +78,6 @@ proc http-page { page { mime text/html } {
     } 
 } {
     try { 
-
         if { ![check-auth $page] } { return }
 
         wapp-mimetype $mime

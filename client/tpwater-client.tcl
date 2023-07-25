@@ -194,6 +194,7 @@ proc run { args } {
 }
 
 proc subscribe-to-names { var args } {
+    log SUBSCRIBE TO NAMES $args
     upvar $var value
     foreach name $value {
         log msg_subscribe WATER $name

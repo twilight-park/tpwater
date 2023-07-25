@@ -11,7 +11,9 @@ namespace eval ::gpio::gpio {
         }
 
         method function { pin mode } {
-            piio function $pin $mode
+			set p [dict get $::gpio::gpio::PINMAP $pin]
+
+            piio function $p $mode
         }
 
         method write { pin st } {
