@@ -211,6 +211,7 @@ proc passwords { var args } {
 }
 
 proc init-cached-value { name variable code } {
+    log init-cached-value $name $variable $code
     try {
         set ::$variable [cat $::script_dir/../cache/$variable]
     } on error e { log-error $e }
@@ -230,6 +231,7 @@ proc init-cached-base64-value { name variable { code {} } } {
 }
 
 proc cache-value { name code args } {
+    log init-cached-value $name $code $args
     echo [set ::$name] > $::script_dir/../cache/$name
     if { $code ne {} } {
         eval $code ::$name
@@ -247,8 +249,6 @@ proc cache-base64-value { name code args } {
 msg_client WATER
 msg_setreopen WATER 10000
 msg_apikey WATER $apikey
-
-msg_subscribe WATER names {} subscribe-to-names
 
 init-cached-value names names subscribe-to-names
 
