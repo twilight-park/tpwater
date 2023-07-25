@@ -258,7 +258,10 @@ init-cached-base64-value status-page status-page:base64
 init-cached-base64-value  login-page  login-page:base64 
 
 proc sim-status {} {
-    try { msg_cmd WATER "radio [clock seconds] [get-sim-status]" 0 nowait } on error e {
+    try { 
+	set values [get-sim-status]
+	log sim status {*}$values
+	msg_cmd WATER "radio [clock seconds] $values" 0 nowait } on error e {
         log-error $e
     }
 }

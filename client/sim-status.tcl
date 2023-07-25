@@ -51,6 +51,7 @@ set CSQ  {
     28	{  -57	Excellent   }
     29	{  -55	Excellent   }
     30	{  -53	Excellent   }
+    31	{  -51	Excellent   }
 }
 
 proc line { tty cmd } {
@@ -74,6 +75,9 @@ proc ATparse { status line } {
     switch -glob $line {
         +COPS:* {
            set status [dict replace $status {*}[zip {- - op - } [split [lindex [split $line :] 1] ,]]]
+	   if { [dict get $status op] eq "" } {
+		dict set status op Unknown
+	   }
         }
         +CSQ:* {
            set status [dict replace $status \
