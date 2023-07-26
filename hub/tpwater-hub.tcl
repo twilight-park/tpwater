@@ -154,7 +154,6 @@ msg_srvproc WATER rec { seconds args } {
 }
 
 proc check {} {
-    after 1000 check
     set now [clock seconds]
     set delta [expr { abs($now - $::last) }]
 
@@ -169,6 +168,6 @@ msg_publish WATER names
 msg_apikey WATER $apikeys
 msg_up WATER
 
-check
+every 1000 check
 
 vwait forever
