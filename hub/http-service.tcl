@@ -14,50 +14,52 @@ source $script_dir/../share/lib/page-lib.tcl
 source $script_dir/../pkg/json/json.tcl
 
 
-wapp-route GET /query/log/start/end {
+wapp-route GET /query/table/start/end {
     wapp-cache-control no-cache
-
-    timer query start
-
     wapp-mimetype application/json
-    set table waterplant
 
     if { $start eq "" } {
         return
     }
+
+    if { $table eq "log" } {
+        set table waterplant
+    }
+
+    set columns [wapp-param columns]
+    if { $columns eq "" } {
+        set columns { flow tank }
+    }
+    timer query start
 
     set now   [clock seconds]
     set start [seconds $start $now]
     set end   [seconds $end $now]
 
     try {
-        with stmt = [db prepare [subst {
-                select round(time_measured/60)*60 as time_measured, 
-                       max(min((avg(flow) - [flow get zero])*[flow get scale], [flow get max]), [flow get min]) as flow, 
-                       max(min((avg(tank) - [tank get zero])*[tank get scale], [tank get max]), [tank get min]) as tank
-                from $table 
+        set sql [template:subst {
+            select time_measured,
+                   [: c $!columns , { 
+                       round(max(min((avg($!c) - [!$!c get zero])*[!$!c get scale], [!$!c get max]), [!$!c get min]), 2) as $!c 
+                   }]
+            from (
+                select 
+                    CAST(round(time_measured/60)*60 as INT) as time_measured, 
+                    [: c $!columns , { $!c }]
+                from $!table 
                 where time_measured > :start AND time_measured < :end
-                group by time_measured
-                order by time_measured
-            }]] { $stmt close } {
+            )
+            group by time_measured
+            order by time_measured
+        }]
+        with stmt = [db prepare $sql] { $stmt close } {
             with result = [$stmt execute] { $result close } {
-                set d [$result allrows -as lists]
-
-                foreach row $d {
-                    lassign $row time flow tank
-                    dict set data $time [list $flow $tank]
-                }
-                set dlist [list]
-                foreach { time value } $data {
-                    lappend dlist [list $time [lindex $value 0] [lindex $value 1]]
-                }
-
-                wapp [json::encode [list { array array number } $dlist]]
+                wapp [json::encode [list { array array number } [$result allrows -as lists]]]
             }
         }
-        wapp-log info "[wapp-param REMOTE_ADDR] Query $table From $start To $end in [timer query get] seconds"
+        log [wapp-param REMOTE_ADDR] Query $table From $start To $end in [timer query get] seconds
     } on error msg {
-        wapp-log error $msg
+        log-error $msg
     }
 }
 
