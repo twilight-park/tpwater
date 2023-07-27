@@ -63,6 +63,9 @@ proc check-auth { page } {
 proc get? { name } {
     if { [info exists $name] } {
         set value [set $name]
+        if { ![string is double $value] } {
+            return "\"$value\""
+        }
         if { $value eq "" } {
             return {""}
         }
