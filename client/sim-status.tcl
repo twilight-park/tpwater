@@ -56,7 +56,7 @@ set CSQ  {
 
 proc line { tty cmd } {
     puts $tty $cmd
-    after 50
+    after 75
     while { true } {
         gets $tty line
         if { $line eq "OK" } {
