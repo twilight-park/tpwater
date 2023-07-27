@@ -51,7 +51,8 @@ case $CMD in
 
         $0 keys $PI
         $0 gitkeys $PI
-        scp $HOME/.gitconfig $PI:
+        scp $HOME/.gitconfig    $PI:
+        scp $HOME/.vimrc        $PI:
         ;;
     install)
         sudo apt -y upgrade
