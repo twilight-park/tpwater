@@ -220,6 +220,7 @@ proc init-cached-value { name variable code } {
 }
 
 proc init-cached-base64-value { name variable { code {} } } {
+    log init-cached-base64-value $name $variable $code
     try {
         set ::$variable [cat $::script_dir/../cache/$variable]
         value-md5sum ::$variable
@@ -232,7 +233,7 @@ proc init-cached-base64-value { name variable { code {} } } {
 }
 
 proc cache-value { name code args } {
-    log init-cached-value $name $code $args
+    log cached-value $name $code $args
     echo [set ::$name] > $::script_dir/../cache/$name
     if { $code ne {} } {
         eval $code ::$name
