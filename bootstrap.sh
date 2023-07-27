@@ -2,7 +2,7 @@
 # 
 # UI Setup 
 #
-#   Raspberry Pi Configuration --> System --> chnage hostname
+#   Raspberry Pi Configuration --> System --> change hostname
 #   Raspberry Pi Configuration --> Interfaces --> i2c
 #   Raspberry Pi Configuration --> Interfaces --> serail
 #   Raspberry Pi Configuration --> Interfaces --> no console
@@ -32,7 +32,7 @@ cell_interface() {
 }
 
 case $CMD in 
-    auth|copy|remote|setup|gitkeys|keys|restore)
+    auth|config|copy|remote|setup|gitkeys|keys|restore|update)
         if [ "$1" != "" ] ; then
             PI=$1; shift
         fi
@@ -60,7 +60,7 @@ case $CMD in
 
 
         sudo apt -y install mosh
-	sudo apt -y install vim
+        sudo apt -y install vim
         sudo apt -y install screen
         sudo apt -y install i2c-tools
         sudo apt -y install chromium
@@ -93,6 +93,37 @@ case $CMD in
         fi
         ;;
 
+    config)
+        $0 copy
+        $0 remote $PI raspi-config
+        ;;
+
+    raspi-config)
+        ssh $PI "sudo raspi-config nonint do_hostname $hostname"
+        ssh $PI "sudo raspi-config nonint do_i2c 1"
+        ssh $PI "sudo raspi-config nonint do_serial 2"
+        ;;
+
+    update-software)
+        ( cd tpwater            ;   git pull )
+        ( cd tpwater/pkg/jbr.tcl;   git pull )
+        ;;
+
+    update)
+        $0 copy
+
+        # Disable Overlay
+        ssh $PI "sudo raspi-config nonint do_overlayfs 1"
+        ssh $PI "sudo reboot"
+        sleep 180
+
+        $0 remote $PI update-software
+
+        # Enable Overlay
+        sudo raspi-config nonint do_overlayfs 0
+        ssh $PI "sudo reboot"
+        sleep 180
+        ;;
     copy)
         scp $0 $PI:
         ;;
@@ -318,4 +349,7 @@ i2c Python
 
 To Try:
 	armbian-add-overlay i2c-b.dts
+
+------------------------------------
+
 
