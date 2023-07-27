@@ -99,10 +99,10 @@ foreach config [glob -directory $script_dir/config -tails *] {
             }
         }
         set configName [file rootname [file tail $config]]
+        lappend configs $configName
         dict set configuration config $configName
         set ::$apikey $configuration
         msg_publish WATER $apikey $config:base64
-        msg_publish WATER $configName:last
         msg_publish WATER $configName:status
         dict set ::$apikey names $_names
     }
@@ -172,8 +172,9 @@ proc check {} {
     }
 }
 
-log Global Names {*}$::names
-msg_publish WATER names
+msg_publish WATER names         ; log Names {*}$::names
+msg_publish WATER configs       ; log Configs {*}$::configs
+print
 msg_apikey WATER $apikeys
 msg_up WATER
 
