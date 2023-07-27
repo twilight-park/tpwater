@@ -76,8 +76,8 @@
                 dataLast = new Date(data.date * 1000);
 
                 document.getElementById("dataLast").textContent = dataLast.toLocaleString();
-                document.getElementById("flowLast").textContent = flow.toFixed(0) + " GPM";
-                document.getElementById("tankLast").textContent = tank.toFixed(0) + "%";
+                document.getElementById("flowLast").textContent = typeof flow === 'number' ? flow.toFixed(0) + " GPM" : flow;
+                document.getElementById("tankLast").textContent = typeof tank === 'number' ? tank.toFixed(0) + "%" : tank;
 
                 document.getElementById("golf").textContent = data.golf ? "Golf Course :  ON" : "Golf Course : OFF";
                 document.getElementById("golf").style.color = data.golf ? "green" : "blue";
