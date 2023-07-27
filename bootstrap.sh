@@ -35,6 +35,13 @@ case $CMD in
     auth|config|copy|remote|setup|gitkeys|keys|restore|update)
         if [ "$1" != "" ] ; then
             PI=$1; shift
+            if [ "$PI" = "" ] ; then
+                echo "remote pi nmae required" 1>&2
+                exit 1
+            fi
+        else
+            echo "remote pi nmae required" 1>&2
+            exit 1
         fi
         ;;
 esac
@@ -100,9 +107,13 @@ case $CMD in
         ;;
 
     raspi-config)
-        ssh $PI "sudo raspi-config nonint do_hostname $hostname"
-        ssh $PI "sudo raspi-config nonint do_i2c 1"
-        ssh $PI "sudo raspi-config nonint do_serial 2"
+        hostname=$1
+
+        echo Setting Hostname $hostname 1>&2
+
+        sudo raspi-config nonint do_hostname $hostname
+        sudo raspi-config nonint do_i2c 1
+        sudo raspi-config nonint do_serial 2
         ;;
 
     update-software)
@@ -111,19 +122,18 @@ case $CMD in
         ;;
 
     update)
-        $0 copy
-
         # Disable Overlay
         ssh $PI "sudo raspi-config nonint do_overlayfs 1"
-        ssh $PI "sudo reboot"
-        sleep 180
+        ssh -o "ServerAliveInterval 2" $PI "sudo reboot"
+        sleep 60
 
+        $0 copy $PI
         $0 remote $PI update-software
 
         # Enable Overlay
-        sudo raspi-config nonint do_overlayfs 0
-        ssh $PI "sudo reboot"
-        sleep 180
+        ssh $PI "sudo raspi-config nonint do_overlayfs 0"
+        ssh -o "ServerAliveInterval 2" $PI "sudo reboot"
+        sleep 60
         ;;
     copy)
         scp $0 $PI:
