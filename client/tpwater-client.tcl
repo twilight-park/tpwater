@@ -267,6 +267,8 @@ proc sim-status {} {
     }
 }
 
-every 60000 sim-status
+if { [file exists /dev/ttyUSB2] } {
+    every 60000 sim-status
+}
 
 vwait forever
