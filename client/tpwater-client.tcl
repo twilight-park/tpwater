@@ -25,6 +25,7 @@ set LOGTAIL [file rootname [file tail $::argv0]]
 source $script_dir/../share/lib/log.tcl
 source $script_dir/../share/lib/codec-lib.tcl
 source $script_dir/../share/lib/passwd-reader.tcl
+source $script_dir/../share/lib/stacktrace.tcl
 source $script_dir/http-service.tcl
 
 source $script_dir/devices/ADS1115.tcl
@@ -43,7 +44,10 @@ proc config-reader { dir apikey } {
         msg_subscribe WATER $configName:status
 
         set ::$configName [cat $dir/$config]
-
+        if { [dict get [set ::$configName] apikey] eq $apikey } { 
+            set ::config $configName
+        }
+        print $configName [expr { $::config eq $configName ? "Local" : "Remote" }]
         print [set ::$configName]
 
         foreach { name params } [set ::$configName] {
@@ -55,23 +59,16 @@ proc config-reader { dir apikey } {
             }
             lappend ::names $name
 
-            msg_subscribe WATER $name   ; # subscribe to all the names in the system
+            # This config if NOT for this card
+            #
+            if { $configName ne $::config } { 
+                msg_subscribe WATER $name   ; # subscribe to all the names in the system
+                continue 
+            }
 
+            # This config is for this card
+            #
             dict with params {
-                # This config if NOT for this card
-                #
-                if { [dict get [set ::$configName] apikey] ne $apikey } {
-                    continue
-                }
-
-                # This config is for this card
-                #
-                if { $mode eq "output" } { 
-                    msg_subscribe WATER $name:request {} "set-state $name" 
-                    lappend ::outputs $name
-                }
-
-
                 switch $device {
                   ADS1115 -
                   MCP342x {
@@ -104,9 +101,14 @@ proc config-reader { dir apikey } {
                   }
                 }
 
+                if { $mode eq "output" } { 
+                    msg_subscribe WATER $name:request {} "set-state $name" 
+                    lappend ::outputs $name
+                }
             }
             $name config $params
         }
+        print
     }
     set ::devices [lsort -uniq $::devices]
 
@@ -117,7 +119,7 @@ proc set-state { name var args } {
     upvar $var value
     $name write $value
     set ::$name $value
-    try { msg_set WATER $name $value {} async } on error e {}
+    try { msg_set WATER $name $value {} async } on error e { print $::errorInfo }
 }
 
 proc every {ms body} {
