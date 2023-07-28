@@ -58,8 +58,6 @@ proc config-reader { dir apikey } {
             msg_subscribe WATER $name   ; # subscribe to all the names in the system
 
             dict with params {
-                if { $mode eq "output" } { lappend ::outputs $name }
-
                 # This config if NOT for this card
                 #
                 if { [dict get [set ::$configName] apikey] ne $apikey } {
@@ -68,7 +66,11 @@ proc config-reader { dir apikey } {
 
                 # This config is for this card
                 #
-                if { $mode eq "output" } { msg_subscribe WATER $name:request {} "set-state $name" }
+                if { $mode eq "output" } { 
+                    msg_subscribe WATER $name:request {} "set-state $name" 
+                    lappend ::outputs $name
+                }
+
 
                 switch $device {
                   ADS1115 -
