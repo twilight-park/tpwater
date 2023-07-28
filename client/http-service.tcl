@@ -1,6 +1,4 @@
 
-set ADDR tcp!*!7777
-
 package require jbr::template
 
 source $TPWATER/pkg/wapp/wapp.tcl
@@ -32,4 +30,3 @@ wapp-route GET /press {
     } on error e { log-error $e }
 }
 
- wapp-start [list -server $ADDR -nowait]
