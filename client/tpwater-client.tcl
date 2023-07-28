@@ -38,6 +38,8 @@ source $script_dir/channel.tcl
 proc config-reader { dir apikey } {
     set ::names {}
     set ::config {}
+    set ::outputs {}
+
     foreach config [glob -directory $dir -tails *.cfg] {
         set configName [file rootname [file tail $config]]
         lappend configs $configName
