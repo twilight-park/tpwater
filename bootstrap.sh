@@ -127,6 +127,9 @@ case $CMD in
         sleep 60
 
         $0 copy $PI
+        $0 remote $PI rc.local 
+        $0 remote $PI crontab up
+        $0 remote $PI firewall up
         $0 remote $PI update-software
 
         $0 overlay $PI up
