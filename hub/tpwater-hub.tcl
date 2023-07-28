@@ -23,6 +23,7 @@ set LOGTAIL [file rootname [file tail $::argv0]]
 
 source $script_dir/../share/lib/log.tcl
 source $script_dir/../share/lib/codec-lib.tcl
+source $script_dir/../share/lib/passwd-reader.tcl
 
 source $script_dir/db-setup.tcl
 source $script_dir/http-service.tcl
@@ -41,13 +42,6 @@ proc every {ms body} {
 proc print-var { name varname args } {
     upvar $varname var
     log print-var $name [set var] $args
-}
-
-proc passwd-reader { passwd } {
-    foreach { hash auth user } [cat $passwd] {
-        dict set ::password $hash "$auth $user"
-        dict set ::password $user "$auth $hash"
-    }
 }
 
 proc config-reader { dir } {

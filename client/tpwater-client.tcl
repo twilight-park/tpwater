@@ -17,8 +17,6 @@ package require jbr::with
 package require jbr::unix
 package require jbr::msg
 
-set apikey [cat $HOME/apikey]
-
 set script_dir [file dirname $argv0]
 
 set LOGPATH $::script_dir/../log
@@ -26,6 +24,7 @@ set LOGTAIL [file rootname [file tail $::argv0]]
 
 source $script_dir/../share/lib/log.tcl
 source $script_dir/../share/lib/codec-lib.tcl
+source $script_dir/../share/lib/passwd-reader.tcl
 source $script_dir/http-service.tcl
 
 source $script_dir/devices/ADS1115.tcl
@@ -35,11 +34,19 @@ source $script_dir/devices/gpio-[run uname -m].tcl
 source $script_dir/sim-status.tcl
 source $script_dir/channel.tcl
 
-proc configure { config } {
-    try {
-        log configure $config
+proc config-reader { dir apikey } {
+    foreach config [glob -directory $dir -tails *.cfg] {
+        set configName [file rootname [file tail $config]]
+        lappend configs $configName
 
-        foreach { name params } $config {
+        set ::$configName:status ?
+        msg_subscribe WATER $configName:status
+
+        set ::$configName [cat $dir/$config]
+
+        print [set ::$configName]
+
+        foreach { name params } [set ::$configName] {
             if { [string index $name 0] eq "#" } { continue }
             if { $name eq "apikey" } { continue }
             if { $name eq "record" } {
@@ -47,7 +54,21 @@ proc configure { config } {
                 continue
             }
 
+            msg_subscribe WATER $name   ; # subscribe to all the names in the system
+
             dict with params {
+                if { $mode eq "output" } { lappend ::outputs $name }
+
+                # This config if NOT for this card
+                #
+                if { [dict get [set ::$configName] apikey] ne $apikey } {
+                    continue
+                }
+
+                # This config is for this card
+                #
+                if { $mode eq "output" } { msg_subscribe WATER $name:request {} "set-state $name" }
+
                 switch $device {
                   ADS1115 -
                   MCP342x {
@@ -79,17 +100,14 @@ proc configure { config } {
                     channel create $name $name $dev $channel 0
                   }
                 }
+
             }
             $name config $params
-            msg_subscribe WATER $name 
-            if { [$name get mode] eq "output" } {
-                lappend ::outputs $name
-                msg_subscribe WATER $name:request {} "set-state $name"
-            }
         }
+    }
+    set ::devices [lsort -uniq $::devices]
 
-        set ::devices [lsort -uniq $::devices]
-    } on error e { log-error $e }
+    return $configs
 }
 
 proc set-state { name var args } {
@@ -97,16 +115,6 @@ proc set-state { name var args } {
     $name write $value
     set ::$name $value
     try { msg_set WATER $name $value {} async } on error e {}
-}
-
-proc reconfig { args } {
-    try {
-        set config [value-decode $::config]
-
-        cleanup
-        configure $config
-        readout
-    } on error e { log-error $e }
 }
 
 proc every {ms body} {
@@ -147,33 +155,6 @@ proc record { args } {
     } on error e { log-error record : $e }
 }
 
-proc unset? { name } {
-    if { [info exists $name] } {
-        unset $name
-    }
-}
-proc cleanup {} {
-    try {
-        foreach after [after info] {
-            after cancel $after
-        }
-        if { [info exists ::devices] } {
-            foreach device $::devices {
-                unset? ::$device
-            }
-            unset? ::devices
-        }
-        if { [info exists ::inputs] } {
-            foreach input $::inputs {
-                rename $input {}
-            }
-            unset? ::inputs
-        }
-        
-        unset? ::inputs
-    } on error e { log-error cleanup : $e }
-}
-
 proc readout {} {
     foreach device $::devices {
         _sample $device {*}[dict get [set ::$device] channels]
@@ -193,71 +174,19 @@ proc run { args } {
     }
 }
 
-proc subscribe-to-names { var args } {
-    log SUBSCRIBE TO NAMES $args
-    upvar $var value
-    foreach name $value {
-        log msg_subscribe WATER $name
-        msg_subscribe WATER $name
-    }
-}
+set apikey [cat $HOME/apikey]
 
-proc passwords { var args } {
-    upvar $var value
-    set passwords [value-decode $value]
-    foreach { hash auth user } $passwords {
-        dict set ::password $hash "$auth $user"
-        dict set ::password $user "$auth $hash"
-    }
-}
+passwd-reader $::script_dir/../password
 
-proc init-cached-value { name variable code } {
-    log init-cached-value $name $variable $code
-    try {
-        set ::$variable [cat $::script_dir/../cache/$variable]
-    } on error e { log-error $e }
-    msg_subscribe WATER $name $variable [list cache-value $variable $code]
-}
-
-proc init-cached-base64-value { name variable { code {} } } {
-    log init-cached-base64-value $name $variable $code
-    try {
-        set ::$variable [cat $::script_dir/../cache/$variable]
-        value-md5sum ::$variable
-        if { $code ne {} } {
-            eval $code ::$variable
-        }
-    } on error e { log-error $e }
-
-    msg_subscribe WATER $name $variable [list cache-base64-value $variable $code]
-}
-
-proc cache-value { name code args } {
-    log cached-value $name $code $args
-    echo [set ::$name] > $::script_dir/../cache/$name
-    if { $code ne {} } {
-        eval $code ::$name
-    }
-}
-
-proc cache-base64-value { name code args } {
-    echo [set ::$name] > $::script_dir/../cache/$name
-    value-md5sum ::$name
-    if { $code ne {} } {
-        eval $code ::$name
-    }
-}
 
 msg_client WATER
-msg_setreopen WATER 10000
 msg_apikey WATER $apikey
+msg_setreopen WATER 10000
 
-init-cached-value names names subscribe-to-names
+set configs [config-reader $::script_dir/../share/config $apikey]
+set ::buttons $::outputs
 
-init-cached-base64-value     $apikey             config reconfig
-init-cached-base64-value    password    password:base64 passwords
-init-cached-base64-value status-page status-page:base64 
-init-cached-base64-value  login-page  login-page:base64 
+readout
 
 proc sim-status {} {
     try { 
