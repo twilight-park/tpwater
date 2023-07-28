@@ -36,6 +36,7 @@ source $script_dir/sim-status.tcl
 source $script_dir/channel.tcl
 
 proc config-reader { dir apikey } {
+    set ::config {}
     foreach config [glob -directory $dir -tails *.cfg] {
         set configName [file rootname [file tail $config]]
         lappend configs $configName
