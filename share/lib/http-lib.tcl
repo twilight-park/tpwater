@@ -76,8 +76,20 @@ proc get? { name } {
     }
 }
 
+proc html-read { page } {
+    set hfile $::script_dir/../share/html/$page.page
+
+    if { ![info exists :$page:mtime] || [set ::$page:mtime] < [file mtime $hfile] } {
+        set ::$page:text   [cat $hfile]
+        set ::$page:mtime  [file mtime $hfile]
+        set ::$page:md5sum [md5sum [set ::$page:text]]
+    }
+
+    return [set ::$page:text]
+}
+
 proc http-page { page { mime text/html } { 
-        code { wapp [T subst [value-decode [set ::$page-page:base64]]] } 
+        code { wapp [T subst [html-read $page]] } 
     } 
 } {
     try { 

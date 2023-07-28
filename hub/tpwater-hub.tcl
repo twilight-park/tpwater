@@ -1,9 +1,6 @@
 #!/usr/bin/env tclsh
 #
 
-set ADDR tcp!data.rkroll.com!7778
-set env(WATER) .:8001
-
 set script_dir [file dirname $argv0]
 source $script_dir/hub.cfg
 
@@ -41,82 +38,51 @@ proc every {ms body} {
     try $body
 }
 
-proc config-read { config } {
-    return [value-encode [cat $config]]
-}
-
-proc reload-file { config } {
-    log reload file $config
-    set ::$config:base64 [config-read config/$config]
-    set ::$config:md5sum [md5sum [set ::$config:base64]]
-}
-
 proc print-var { name varname args } {
     upvar $varname var
     log print-var $name [set var] $args
 }
 
-
-foreach config [glob -directory $script_dir/config -tails *] {
-    set ::$config:base64 [config-read $script_dir/config/$config]
-    set ::$config:md5sum [md5sum [set ::$config:base64]]
-
-    filewatch $script_dir/config/$config "reload-file $config"
-
-    if { [string equal $config password] } {
-        msg_publish WATER $config $config:base64
-        foreach { hash auth user } [cat $script_dir/config/$config] {
-            dict set ::password $hash "$auth $user"
-            dict set ::password $user "$auth $hash"
-        }
+proc passwd-reader { passwd } {
+    foreach { hash auth user } [cat $passwd] {
+        dict set ::password $hash "$auth $user"
+        dict set ::password $user "$auth $hash"
     }
+}
 
-    if { [string ends-with $config -page] } {
-        msg_publish WATER $config $config:base64
-        continue
-    }
+proc config-reader { dir } {
+    foreach config [glob -directory $dir -tails *.cfg] {
+        set configName [file rootname [file tail $config]]
+        lappend configs $configName
 
-    if { [string ends-with $config .cfg] } {
-        set configuration [cat $script_dir/config/$config]
-        set _names {}
-        foreach { name values } $configuration {
+        set ::$configName:status ?
+        msg_publish WATER $configName:status
+
+        set ::$configName [cat $dir/$config]
+        foreach { name values } [set ::$configName] {
             if { $name eq "record" || [string starts-with $name "#"]} { continue }
             if { $name eq "apikey" } {
-                set apikey $values
-                lappend apikeys $apikey
+                dict set ::apikeyMap $values $configName
                 continue
             }
 
-            lappend _names $name 
             lappend ::names $name
 
             channel create $name $name
             $name config $values
+            set ::$name ??
             msg_publish WATER $name {} ; # "print-var $name"
+            dict lappend ::$configName names $name
+
             if { [$name get mode] eq "output" } {
                 msg_publish WATER $name:request {} ; # "print-var $name"
                 lappend ::outputs $name
             }
         }
-        set configName [file rootname [file tail $config]]
-        lappend configs $configName
-        dict set configuration config $configName
-        set ::$apikey $configuration
-        msg_publish WATER $apikey $config:base64
-        msg_publish WATER $configName:status
-        dict set ::$apikey names $_names
     }
 }
-set buttons $names
-
 set last 0
 set late true
-
-proc get-config-name { sock } {
-    # log $sock $apikey $config
-    set apikey [msg_getkey WATER $sock]
-    return [dict get [set ::$apikey] config]]
-}
 
 msg_srvproc WATER radio { time_measured args } {
     upvar sock sock
@@ -145,10 +111,10 @@ msg_srvproc WATER rec { seconds args } {
         set ::late false
 
         set apikey [msg_getkey WATER $sock]
-        set config [dict get [set ::$apikey] config]
-        set names  [dict get [set ::$apikey] names]
+        set config [dict get $::apikeyMap $apikey]
+        set names  [dict get [set ::$config] names]
 
-        set ::$config $seconds
+        set ::$config:last $seconds
         db:record $config $seconds {*}[zip $names $args]
 
         try {
@@ -172,11 +138,15 @@ proc check {} {
     }
 }
 
-msg_publish WATER names         ; log Names {*}$::names
-msg_publish WATER configs       ; log Configs {*}$::configs
-print
-msg_apikey WATER $apikeys
+set ::apikeyMap {}
+
+passwd-reader $::script_dir/../password
+config-reader $::script_dir/../share/config
+
+set ::buttons $::names
+
 msg_up WATER
+msg_apikey WATER [dict keys $::apikeyMap]
 
 every 1000 check
 

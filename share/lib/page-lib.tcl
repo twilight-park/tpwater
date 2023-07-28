@@ -26,7 +26,7 @@ wapp-route GET /values {
         wapp [template:subst { {
             [: name $!::names { "$!name": [!get? ::$!name], } ]
             "date": [!clock seconds],
-            "page": [!get? ::$!page-page:md5sum]
+            "page": [!get? ::$!page:md5sum]
         } }]
 
     }
