@@ -32,7 +32,7 @@ cell_interface() {
 }
 
 case $CMD in 
-    auth|config|copy|remote|setup|gitkeys|keys|restore|update)
+    auth|config|copy|overlay|remote|setup|gitkeys|keys|reboot|restore|update)
         if [ "$1" != "" ] ; then
             PI=$1; shift
             if [ "$PI" = "" ] ; then
@@ -122,19 +122,29 @@ case $CMD in
         ;;
 
     update)
-        # Disable Overlay
-        ssh $PI "sudo raspi-config nonint do_overlayfs 1"
-        ssh -o "ServerAliveInterval 2" $PI "sudo reboot"
+        $0 overlay $PI down 
+        $0 reboot $PI
         sleep 60
 
         $0 copy $PI
         $0 remote $PI update-software
 
-        # Enable Overlay
-        ssh $PI "sudo raspi-config nonint do_overlayfs 0"
-        ssh -o "ServerAliveInterval 2" $PI "sudo reboot"
+        $0 overlay $PI up
+        $0 reboot $PI
         sleep 60
         ;;
+
+    overlay)
+        case $1 in
+         up)    ssh $PI "sudo raspi-config nonint do_overlayfs 0" ;;
+         down)  ssh $PI "sudo raspi-config nonint do_overlayfs 1" ;;
+        esac
+        ;;
+
+    reboot)
+        ssh -o "ServerAliveInterval 2" $PI "sudo reboot"
+        ;;
+
     copy)
         scp $0 $PI:
         ;;
