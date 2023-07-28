@@ -102,6 +102,10 @@ proc config-reader { dir apikey } {
                 }
 
                 if { $mode eq "output" } { 
+                    set value [$name read]
+
+                    msg_set WATER $name:request $value {} sync
+                    msg_set WATER $name         $value {} sync
                     msg_subscribe WATER $name:request {} "set-state $name" 
                     lappend ::outputs $name
                 }
