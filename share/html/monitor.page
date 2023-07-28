@@ -124,10 +124,10 @@
                 }
                 page = data.page;
 
-                document.getElementById("golf").textContent = data.golf ? "Golf Course :  ON" : "Golf Course : OFF";
-                document.getElementById("golf").style.color = data.golf ? "green" : "blue";
-                document.getElementById("thrd").textContent = data.thrd ? "Third Level :  ON" : "Third Level : OFF";
-                document.getElementById("thrd").style.color = data.thrd ? "green" : "blue";
+                document.getElementById("golf").textContent = typeof data.golf === "number" ? (data.golf ? "Golf Course :  ON" : "Golf Course : OFF") : "Golf Course : ???";
+                document.getElementById("golf").style.color = typeof data.golf === "number" && data.golf ? "green" : "blue";
+                document.getElementById("thrd").textContent = typeof data.thrd === "number" ? (data.thrd ? "Third Level :  ON" : "Third Level : OFF") : "Third Level : ???";
+                document.getElementById("thrd").style.color = typeof data.thrd === "number" && data.thrd ? "green" : "blue";
             }
         );
       }
