@@ -53,6 +53,7 @@ proc config-reader { dir apikey } {
                 set ::record $params
                 continue
             }
+            lappend ::names $name
 
             msg_subscribe WATER $name   ; # subscribe to all the names in the system
 
