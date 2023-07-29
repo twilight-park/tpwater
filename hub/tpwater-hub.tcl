@@ -74,14 +74,17 @@ proc config-reader { dir } {
             }
         }
     }
+
+    foreach config $configs {
+        set ::$config:last 0
+        set ::$config:late true
+    }
 }
-set last 0
-set late true
 
 msg_srvproc WATER radio { time_measured args } {
     upvar sock sock
     set apikey [msg_getkey WATER $sock]
-    set config [dict get [set ::$apikey] config]
+    set config [dict get $::apikeyMap $apikey]
 
     db:record radio [clock seconds] station $config {*}$args
 }
@@ -90,23 +93,24 @@ msg_srvproc WATER rec { seconds args } {
     upvar sock sock
 
     try {
+        set apikey [msg_getkey WATER $sock]
+        set config [dict get $::apikeyMap $apikey]
+        set names  [dict get [set ::$config] names]
+
         set now [clock seconds]
 
         set delta [expr { abs($now - $seconds) }]
         if { $delta > 2 } {
-            log Oops $seconds : $delta
+            log Oops $config $seconds : $delta
         }
 
-        set delta [expr { abs($seconds - $::last) }]
-        if { $::last != 0 && $delta > 25 } {
-            log Dropped $delta seconds from $::last to $seconds
+        set last [set ::$config:last]
+        set delta [expr { abs($seconds - $last) }]
+        if { $last != 0 && $delta > 25 } {
+            log Dropped $delta seconds from $last to $seconds
         }
-        set ::last $seconds
-        set ::late false
-
-        set apikey [msg_getkey WATER $sock]
-        set config [dict get $::apikeyMap $apikey]
-        set names  [dict get [set ::$config] names]
+        set ::$config:last $seconds
+        set ::l$config:ate false
 
         set ::$config:last $seconds
         db:record $config $seconds {*}[zip $names $args]
@@ -122,26 +126,30 @@ msg_srvproc WATER rec { seconds args } {
     } on error e { log-error $e }
 }
 
-proc check {} {
+proc check { config } {
     set now [clock seconds]
-    set delta [expr { abs($now - $::last) }]
+    set last [set ::$config:last]
+    set late [set ::$config:late]
 
-    if { !$::late && $delta > 25 } {
+    set delta [expr { abs($now - $last) }]
+    if { !$late && $delta > 25 } {
         log "Packet late $delta seconds at $now"
-        set ::late true
+        set ::$config:late true
     }
 }
 
 set ::apikeyMap {}
 
 passwd-reader $::script_dir/../password
-config-reader $::script_dir/../share/config
+set configs [config-reader $::script_dir/../share/config]
 
 set ::buttons $::names
 
 msg_up WATER
 msg_apikey WATER [dict keys $::apikeyMap]
 
-every 1000 check
+foreach config $configs {
+    every 1000 check $config
+}
 
 vwait forever
