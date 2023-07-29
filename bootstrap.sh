@@ -126,6 +126,10 @@ case $CMD in
         sudo bash -c "wpa_passphrase springcottage $password >> /etc/wpa_supplicant/wpa_supplicant.conf"
         ;;
 
+    clear-log)
+        rm tpwater/log/*
+        ;;
+
     update)
         password=$1 ;   shift
 
@@ -135,12 +139,16 @@ case $CMD in
 
         $0 copy $PI
         # $0 remote $PI wifi $password
+        $0 remote $PI crontab down
+        $0 remote $PI tpwater/tpwater.sh kill
         $0 remote $PI rc.local 
-        $0 remote $PI crontab up
         $0 remote $PI firewall up
         $0 remote $PI update-software
 
         $0 overlay $PI up
+
+        $0 remote $PI clear-log
+        $0 remote $PI crontab up
         $0 reboot $PI
         sleep 60
         ;;
