@@ -87,7 +87,7 @@ proc config-reader { dir apikey } {
                     lappend ::inputs $name
                     lappend ::devices $dev
 
-                    channel create $name $name $dev $channel $sample
+                    dev-channel create $name $dev $channel $sample
                   }
                   gpio {
                     set dev gpio
@@ -101,7 +101,7 @@ proc config-reader { dir apikey } {
                     lappend ::devices $dev
 
                     $dev function $channel $mode
-                    channel create $name $name $dev $channel 0
+                    dev-channel create $name $dev $channel 0
                   }
                 }
 

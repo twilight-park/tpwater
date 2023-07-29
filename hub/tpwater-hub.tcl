@@ -21,14 +21,14 @@ package require jbr::filewatch
 set LOGPATH $::script_dir/../log
 set LOGTAIL [file rootname [file tail $::argv0]]
 
-source $script_dir/../share/lib/log.tcl
+source $script_dir/../share/lib/channel.tcl
 source $script_dir/../share/lib/codec-lib.tcl
+source $script_dir/../share/lib/log.tcl
 source $script_dir/../share/lib/passwd-reader.tcl
 
 source $script_dir/db-setup.tcl
 source $script_dir/http-service.tcl
 
-source $script_dir/channel.tcl
 
 msg_server WATER
 msg_deny   WATER internettl.org
@@ -53,17 +53,17 @@ proc config-reader { dir } {
         msg_publish WATER $configName:status
 
         set ::$configName [cat $dir/$config]
-        foreach { name values } [set ::$configName] {
+        foreach { name params } [set ::$configName] {
             if { $name eq "record" || [string starts-with $name "#"]} { continue }
             if { $name eq "apikey" } {
-                dict set ::apikeyMap $values $configName
+                dict set ::apikeyMap $params $configName
                 continue
             }
 
             lappend ::names $name
 
             channel create $name $name
-            $name config $values
+            $name config $params
             set ::$name ??
             msg_publish WATER $name {} ; # "print-var $name"
             dict lappend ::$configName names $name
