@@ -53,6 +53,10 @@ proc config-reader { dir } {
         msg_publish WATER $configName:status
 
         set ::$configName [cat $dir/$config]
+        print $configName
+        print [set ::$configName]
+        print
+
         foreach { name params } [set ::$configName] {
             if { $name eq "record" || [string starts-with $name "#"]} { continue }
             if { $name eq "apikey" } {

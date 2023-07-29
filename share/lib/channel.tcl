@@ -14,4 +14,7 @@ oo::class create channel {
     method config { c } {
         set config $c
     }
+    method get { name } {
+        dict get $config $name
+    }
 }
