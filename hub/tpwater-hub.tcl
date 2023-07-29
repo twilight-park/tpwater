@@ -16,7 +16,6 @@ package require jbr::unix
 package require jbr::with
 package require jbr::print
 package require jbr::string
-package require jbr::filewatch
 
 set LOGPATH $::script_dir/../log
 set LOGTAIL [file rootname [file tail $::argv0]]

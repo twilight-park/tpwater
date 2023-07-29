@@ -8,7 +8,7 @@ source $script_dir/../pkg/wapp/wapp.tcl
 source $script_dir/../pkg/wapp/wapp-routes.tcl
 source $script_dir/../pkg/wapp/wapp-static.tcl
 
-source $script_dir/../share/lib/http-lib.tcl
+source $script_dir/../share/lib/html-lib.tcl
 source $script_dir/../share/lib/page-lib.tcl
 
 source $script_dir/../pkg/json/json.tcl
@@ -66,7 +66,7 @@ wapp-route GET /query/table/start/end {
 wapp-static ~/tpwater/ui ui nobrowse
 
 wapp-route GET /press {
-    http-page press text/html {
+    html-page press text/html {
         set button [wapp-param button]
         if { $button ni $::outputs } {
             return

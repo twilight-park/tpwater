@@ -1,5 +1,6 @@
 
 package require jbr::string
+package require jbr::filewatch
 
 proc is-localhost? {} {
     return [string starts-with [wapp-param HTTP_HOST] "localhost:"]
@@ -79,16 +80,24 @@ proc get? { name } {
 proc html-read { page } {
     set hfile $::script_dir/../share/html/$page.page
 
-    if { ![info exists :$page:mtime] || [set ::$page:mtime] < [file mtime $hfile] } {
-        set ::$page:text   [cat $hfile]
-        set ::$page:mtime  [file mtime $hfile]
-        set ::$page:md5sum [md5sum [set ::$page:text]]
+    if { ![info exists ::$page:mtime] } {
+        filewatch $hfile [list html-read $page]
     }
+
+    if { [info exists ::$page:mtime] && [set ::$page:mtime] >= [file mtime $hfile] } {
+        return [set ::$page:text]
+    }
+
+    set ::$page:text   [cat $hfile]
+    set ::$page:mtime  [file mtime $hfile]
+    set ::$page:md5sum [md5sum [set ::$page:text]]
+
+    log html-read $hfile
 
     return [set ::$page:text]
 }
 
-proc http-page { page { mime text/html } { 
+proc html-page { page { mime text/html } { 
         code { wapp [T subst [html-read $page]] } 
     } 
 } {

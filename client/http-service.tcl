@@ -5,7 +5,7 @@ source $TPWATER/pkg/wapp/wapp.tcl
 source $TPWATER/pkg/wapp/wapp-routes.tcl
 source $TPWATER/pkg/wapp/wapp-static.tcl
 
-source $script_dir/../share/lib/http-lib.tcl
+source $script_dir/../share/lib/html-lib.tcl
 source $script_dir/../share/lib/page-lib.tcl
 
 wapp-route GET /press {
@@ -15,7 +15,6 @@ wapp-route GET /press {
     }
 
     try {
-
         if { $b in $::outputs } {
             set state [$b read]
             set state [expr !$state]

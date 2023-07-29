@@ -10,17 +10,17 @@ wapp-route GET /favicon.ico {
     try { wapp [bcat $::script_dir/../share/static/favicon.ico] } on error e { log-eror $e }
 }
 
-wapp-route GET /login   { http-page login }
-wapp-route GET /status  { http-page status }
-wapp-route GET /monitor { http-page monitor }
+wapp-route GET /login   { html-page login }
+wapp-route GET /status  { html-page status }
+wapp-route GET /monitor { html-page monitor }
 
-wapp-route GET /logout   { 
+wapp-route GET /logout   {
     wapp-set-cookie token X
     wapp-redirect /login
 }
 
 wapp-route GET /values {
-    http-page values application/json {
+    html-page values application/json {
         set page [wapp-param page]
 
         wapp [template:subst { {
@@ -37,4 +37,3 @@ proc wapp-default {} {
     wapp-log info "[wapp-param REMOTE_ADDR] [wapp-param PATH_INFO] Go Away"
     wapp-reply-code ABORT
 }
-

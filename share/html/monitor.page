@@ -1,7 +1,7 @@
 <html>
 <head>
-  <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chartist/0.11.4/chartist.min.css"> -->
-  <link rel="stylesheet" href="/ui/chartist.min.css">
+  [< chartist]
+
   <style type="text/css">
     .chart#flowChart {
         height: 40%;
@@ -52,8 +52,6 @@
   </style>
 
   <script type="module"> 
-      // import { LineChart, FixedScaleAxis } from 'https://esm.sh/chartist';
-      import { LineChart, FixedScaleAxis } from '/ui/chartist.mjs';
 
       var dataLast;
       const dataStale = 120*1000;
@@ -81,8 +79,8 @@
       function updateCharts() {
         const lookback = document.getElementById("lookback");
 
-        // const url = `/query/log/-2h/-30`;
-        const url = `/query/log/-${lookback.value}/-30`;
+        // const url = `/query/waterplant/-2h/-30`;
+        const url = `/query/waterplant/-${lookback.value}`;
 
         fetch(url)
             .then(response => response.json())
@@ -90,6 +88,7 @@
 
                 const { data: flowData, last: flowLast } = selectData(data, 1, 10);
                 const { data: tankData, last: tankLast } = selectData(data, 2, 10);
+
 
                 dataLast = new Date(data[data.length-1][0] * 1000);
 
@@ -133,11 +132,9 @@
       axisX: { 
           showGrid: false,
           type: FixedScaleAxis,
-          divisor: 7,
+          divisor: 12,
           labelInterpolationFnc: value =>
             new Date(value).toLocaleString(undefined, {
-              month: 'short',
-              day: 'numeric',
               hour: 'numeric',
               minute: 'numeric'
               })
