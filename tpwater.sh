@@ -25,6 +25,10 @@ case $CMD in
     backup)
         ./$MODE/scripts/pp-back ./$MODE/scripts/data.rkroll.com
         ;;
+    retail)
+        $0 restart
+        $0 tail
+        ;;
     tail)
         tail -f "$LOG_FILE"
         ;;
