@@ -1,6 +1,6 @@
 package require jbr::dict
 
-source ../share/lib/channel.tcl
+source $::script_dir/../share/lib/channel.tcl
 
 oo::class create dev-channel {
     superclass channel

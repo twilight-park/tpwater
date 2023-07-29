@@ -1,5 +1,6 @@
 #!/usr/bin/env tclsh
 #
+set script_dir [file dirname $argv0]
 
 set env(WATER) data.rkroll.com:8001
 
@@ -16,8 +17,6 @@ package require jbr::func
 package require jbr::with
 package require jbr::unix
 package require jbr::msg
-
-set script_dir [file dirname $argv0]
 
 set LOGPATH $::script_dir/../log
 set LOGTAIL [file rootname [file tail $::argv0]]
