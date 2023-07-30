@@ -121,12 +121,20 @@ case $CMD in
         ( cd tpwater/pkg/jbr.tcl;   git pull )
         ;;
 
+    wifi)
+        password=$1
+        sudo bash -c "wpa_passphrase springcottage $password >> /etc/wpa_supplicant/wpa_supplicant.conf"
+        ;;
+
     update)
+        password=$1 ;   shift
+
         $0 overlay $PI down 
         $0 reboot $PI
         sleep 60
 
         $0 copy $PI
+        $0 remote $PI wifi $password
         $0 remote $PI rc.local 
         $0 remote $PI crontab up
         $0 remote $PI firewall up
