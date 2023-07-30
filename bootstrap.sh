@@ -141,6 +141,7 @@ case $CMD in
         # $0 remote $PI wifi $password
         $0 remote $PI crontab down
         $0 remote $PI tpwater/tpwater.sh kill
+        $0 remote $PI clear-log
         $0 remote $PI rc.local 
         $0 remote $PI firewall up
         $0 remote $PI update-software
