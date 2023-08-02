@@ -181,8 +181,9 @@ case $CMD in
             echo setting metric
             echo interface $cell | tee -a $DHCPCDCONF
             echo metric 2000     | tee -a $DHCPCDCONF
+        else
+            echo metric already set
         fi
-        echo metric already set
         ;;
     cell-routes)
         cd tpwater/client/scripts
