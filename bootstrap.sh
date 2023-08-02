@@ -134,7 +134,7 @@ case $CMD in
         sleep 60
 
         $0 copy $PI
-        $0 remote $PI wifi $password
+        # $0 remote $PI wifi $password
         $0 remote $PI rc.local 
         $0 remote $PI crontab up
         $0 remote $PI firewall up
@@ -288,6 +288,10 @@ case $CMD in
         fi
         LATEST=$(ssh data ls -tr backups/raspberrypi | tail -1)
         ssh data tar cf - -C backups/$FROM/$LATEST . | ssh $PI tar xvf -
+        ;;
+
+    *)
+        echo Huh? 1>&2 
         ;;
 esac
 
