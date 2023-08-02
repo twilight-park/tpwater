@@ -124,6 +124,7 @@ case $CMD in
     wifi)
         password=$1
         sudo bash -c "wpa_passphrase springcottage $password >> /etc/wpa_supplicant/wpa_supplicant.conf"
+        sudo cat /etc/wpa_supplicant/wpa_supplicant.conf
         ;;
 
     clear-log)
