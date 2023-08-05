@@ -299,6 +299,7 @@ exit
 
 	screen /dev/ttyUSB2 115200
     AT+CGDCONT=1,"IP","simbase"  # From Simbase Docs
+    AT+CGDCONT?
     AT+CUSBPIDSWITCH=9011,1,1
 	AT+CRESET
 

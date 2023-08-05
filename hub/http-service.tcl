@@ -52,8 +52,8 @@ wapp-route GET /query/table/start/end {
             group by time_measured
             order by time_measured
         }]
-        with stmt = [db prepare $sql] { $stmt close } {
-            with result = [$stmt execute] { $result close } {
+        with stmt = [db prepare $sql] {
+            with result = [$stmt execute] {
                 wapp [json::encode [list { array array number } [$result allrows -as lists]]]
             }
         }

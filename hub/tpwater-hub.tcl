@@ -118,6 +118,7 @@ msg_srvproc WATER rec { seconds args } {
         set ::$config:last $seconds
         db:record $config $seconds {*}[zip $names $args]
 
+
         try {
             msg_setting $sock
             foreach name $names value $args {
