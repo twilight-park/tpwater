@@ -126,12 +126,11 @@
       }
 
     const chartOptions = {
-      low: 0,
       showPoint: false,
       showGrid: false,
       axisX: { 
-          showGrid: false,
           type: FixedScaleAxis,
+          showGrid: false,
           divisor: 12,
           labelInterpolationFnc: value =>
             new Date(value).toLocaleString(undefined, {
@@ -140,20 +139,28 @@
               })
       },
       axisY: { 
-        showGrid: false,
-        onlyInteger: true
+          type: FixedScaleAxis,
+          showGrid: false,
+          onlyInteger: true
       }
     }
     const flowChartOptions = {
         ... chartOptions,
-        low:   0,
-        high:  [!flow get max]
+        axisY: {
+            ... chartOptions.axisY,
+            low:   0,
+            high:  [!flow get max],
+            ticks: [0, 10, 20, 30, 40, 50]
+        }
     }
     const tankChartOptions = {
         ... chartOptions,
-        low:   0,
-        high:  [!tank get max],
-        ticks: [0, 25, 50, 75, 100]
+        axisY: {
+            ... chartOptions.axisY,
+            low:   0,
+            high:  [!tank get max],
+            ticks: [0, 25, 50, 75, 100]
+        }
     }
 
     function loadPage() {
