@@ -9,7 +9,7 @@ package require tdbc::sqlite3
 tdbc::sqlite3::connection create db "$script_dir/../tpwater.db"
 
 set schema {
-   waterplant  {
+    waterplant  {
         { time_measured integer }
         { time_recorded integer }
         { flow real }
@@ -18,12 +18,12 @@ set schema {
         { chan3 real }
         { thrd real }
     }
-   golfcourse  {
+    golfcourse  {
         { time_measured integer }
         { time_recorded integer }
         { golf real }
     }
-   thirdlevel  {
+    thirdlevel  {
         { time_measured integer }
         { time_recorded integer }
         { thrd real }
@@ -35,6 +35,12 @@ set schema {
         { station       string  }
         { op            string  }
         { db            integer }
+    }
+    testcard {
+        { time_measured integer }
+        { time_recorded integer }
+        { ana0 real }
+        { gpo0  integer }
     }
 }
 
