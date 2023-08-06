@@ -20,12 +20,13 @@ cell_interface() {
     #!/bin/sh
     #
 
-    for inf in enx usb eth ; do
+    for inf in enx usb wwan eth ; do
         chk=$(ip -br addr show | awk "/$inf/"' { print $1; exit }')
         if [ "$chk" = "" ] ; then
             continue
         fi
 
+        echo cell-interface $chk 1>&2
         echo $chk
         exit
     done
@@ -54,7 +55,7 @@ case $CMD in
         $0 copy $PI
 
         $0 remote $PI cell-down
-        $0 remote $PI cell-metric
+        # $0 remote $PI cell-metric
 
         $0 keys $PI
         $0 gitkeys $PI
@@ -81,7 +82,6 @@ case $CMD in
 
         $0 tpwater
         ( cd tpwater ; git checkout rev2 )
-        ( cd tpwater ; mkdir -p cache)
         $0 piio
         $0 wapp
         $0 jbr
@@ -228,9 +228,6 @@ case $CMD in
     gitkeys)
         echo 'Host    github.com'                               | ssh $PI "tee -a .ssh/config"
         echo '    IdentityFile /home/john/.ssh/john@rkroll.com' | ssh $PI "tee -a .ssh/config"
-
-        exit
-
         scp $HOME/.ssh/john@rkroll.com* $PI:.ssh/.
         ;;
     keys)
