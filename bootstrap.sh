@@ -207,9 +207,9 @@ case $CMD in
         fi
         ;;
     cell-routes)
-        cd tpwater/client/scripts
-
-        sudo cp dhcpcd.enter-hook /etc/dhcpcd.enter-hook
+        ( cd tpwater/client/scripts
+          sudo cp dhcpcd.enter-hook /etc/dhcpcd.enter-hook
+        )
         $0 cell-down
         $0 cell-up
         /usr/sbin/route -n
