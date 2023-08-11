@@ -80,8 +80,8 @@ case $CMD in
         $0 i2c
         $0 tcl
 
+        git config --global core.sshCommand "ssh -i ~/.ssh/twilight-park -F /dev/null"
         $0 tpwater
-        ( cd tpwater ; git checkout rev2 )
         $0 piio
         $0 wapp
         $0 jbr
@@ -118,8 +118,17 @@ case $CMD in
         ;;
 
     update-software)
-        ( cd tpwater            ;   git pull )
-        ( cd tpwater/pkg/jbr.tcl;   git pull )
+        git config --global core.sshCommand "ssh -i ~/.ssh/twilight-park -F /dev/null"
+
+        ( cd tpwater            
+          git pull 
+        )
+        ( cd tpwater/pkg/jbr.tcl
+          git pull 
+        )
+        ( cd tpwater/pkg/wapp
+          git pull 
+        )
         ;;
 
     wifi)
@@ -140,7 +149,7 @@ case $CMD in
         sleep 60
 
         $0 copy $PI
-        # $0 remote $PI wifi $password
+        $0 gitkeys $PI
         $0 remote $PI crontab down
         $0 remote $PI tpwater.sh kill
         $0 remote $PI clear-log
@@ -228,9 +237,8 @@ case $CMD in
         ;;
 
     gitkeys)
-        echo 'Host    github.com'                               | ssh $PI "tee -a .ssh/config"
-        echo '    IdentityFile /home/john/.ssh/john@rkroll.com' | ssh $PI "tee -a .ssh/config"
-        scp $HOME/.ssh/john@rkroll.com* $PI:.ssh/.
+        ssh $PI rm .ssh/config .ssh/john@rkroll.com*
+        scp $HOME/.ssh/twilight-park $PI:.ssh/.
         ;;
     keys)
         ssh $PI bash -c "
@@ -261,16 +269,20 @@ case $CMD in
         ;;
     tpwater)
         git clone git@github.com:jbroll/tpwater.git
+        ( cd tpwater
+          git checkout rev2
+        )
         ;;
     jbr)
         mkdir -p  $HOME/tpwater/pkg
         cd $HOME/tpwater/pkg
 
         git clone git@github.com:jbroll/jbr.tcl.git
-        cd jbr.tcl
+        ( cd jbr.tcl
 
-        ./configure 
-        make install-links
+          ./configure 
+          make install-links
+        )
         ;;
     wapp)
         mkdir -p  $HOME/tpwater/pkg
