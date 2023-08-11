@@ -1,8 +1,5 @@
 #!/bin/sh
 
-set -x
-exec 2>&1 > /home/john/routes.log
-
 SCRIPTS=/home/john/tpwater/client/scripts
 
 cell=$($SCRIPTS/cell-interface)
