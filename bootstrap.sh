@@ -91,6 +91,7 @@ case $CMD in
     post)
         $0 cell-routes
         $0 firewall up
+        $0 firewall save
         $0 crontab up
         $0 autostart
         $0 rc.local
@@ -141,10 +142,11 @@ case $CMD in
         $0 copy $PI
         # $0 remote $PI wifi $password
         $0 remote $PI crontab down
-        $0 remote $PI tpwater/tpwater.sh kill
+        $0 remote $PI tpwater.sh kill
         $0 remote $PI clear-log
         $0 remote $PI rc.local 
         $0 remote $PI firewall up
+        $0 remote $PI firewall save
         $0 remote $PI update-software
 
         $0 overlay $PI up
@@ -254,6 +256,9 @@ case $CMD in
         sudo apt -y install tcllib
         sudo apt -y install tcl8.6-tdbc-sqlite3 
         ;;
+    tpwater.sh)
+        tpwater/tpwater.sh "$@"
+        ;;
     tpwater)
         git clone git@github.com:jbroll/tpwater.git
         ;;
@@ -298,7 +303,7 @@ case $CMD in
         ;;
 
     *)
-        echo Huh? 1>&2 
+        echo Huh? $0 "$@" 1>&2 
         ;;
 esac
 
