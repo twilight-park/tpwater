@@ -54,7 +54,7 @@ wapp-route GET /query/table/start/end {
         }]
         with stmt = [db prepare $sql] {
             with result = [$stmt execute] {
-                wapp [json::encode [list { array array number } [$result allrows -as lists]]]
+                wapp [json::encode [list { array array number } [list $start {*}[$result allrows -as lists] $end]]]
             }
         }
         log [wapp-param REMOTE_ADDR] Query $table From $start To $end in [timer query get] seconds

@@ -104,7 +104,7 @@ msg_srvproc WATER rec { seconds args } {
 
         set delta [expr { abs($now - $seconds) }]
         if { $delta > 2 } {
-            log Oops $config $seconds : $delta
+            log Oops $config $now $seconds : $delta
         }
 
         set last [set ::$config:last]

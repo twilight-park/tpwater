@@ -71,7 +71,7 @@
 
       function selectData(rawData, i, n) {
         const data = rawData.map(d => ({ x: new Date(d[0]*1000), y: d[i] }));
-        const last = data[data.length-1].y;
+        const last = data[data.length-2]?.y;
 
         return { data: data, last: last }
       }
@@ -90,11 +90,11 @@
                 const { data: tankData, last: tankLast } = selectData(data, 2, 10);
 
 
-                dataLast = new Date(data[data.length-1][0] * 1000);
+                dataLast = new Date(data[data.length-2][0] * 1000);
 
                 document.getElementById("dataLast").textContent = dataLast.toLocaleString();
-                document.getElementById("flowLast").textContent = typeof flowLast === 'number' ? flowLast.toFixed(0) + " GPM" : flow;
-                document.getElementById("tankLast").textContent = typeof tankLast === 'number' ? tankLast.toFixed(0) + "%" : tank;
+                document.getElementById("flowLast").textContent = (typeof flowLast === 'number' ? flowLast.toFixed(0) : "???") + " GPM";
+                document.getElementById("tankLast").textContent = (typeof tankLast === 'number' ? tankLast.toFixed(0) : "???") + "%";
 
                 flowChart.update({ series: [flowData] });
                 tankChart.update({ series: [tankData] });
@@ -136,7 +136,7 @@
             new Date(value).toLocaleString(undefined, {
               hour: 'numeric',
               minute: 'numeric'
-              })
+            })
       },
       axisY: { 
           type: FixedScaleAxis,
