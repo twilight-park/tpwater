@@ -22,11 +22,13 @@ set schema {
         { time_measured integer }
         { time_recorded integer }
         { golf real }
+        { giac integer }
     }
     thirdlevel  {
         { time_measured integer }
         { time_recorded integer }
         { thrd real }
+        { tiac integer }
     }
 
     radio {
