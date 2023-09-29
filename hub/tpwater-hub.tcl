@@ -156,4 +156,7 @@ foreach config $configs {
     every 1000 check $config
 }
 
+source $script_dir/rules.tcl
+
+
 vwait forever
