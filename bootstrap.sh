@@ -142,8 +142,6 @@ case $CMD in
         ;;
 
     update)
-        password=$1 ;   shift
-
         $0 overlay $PI down 
         $0 reboot $PI
         sleep 60
