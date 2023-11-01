@@ -15,7 +15,7 @@ wapp-route GET /status  { html-page status }
 wapp-route GET /monitor { html-page monitor }
 
 wapp-route GET /logout   {
-    wapp-set-cookie token X
+    wapp-clear-cookie token 
     wapp-redirect /login
 }
 

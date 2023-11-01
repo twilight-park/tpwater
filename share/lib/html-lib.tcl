@@ -43,7 +43,7 @@ proc check-auth { page } {
     }
 
     if { $authOk } {
-        wapp-set-cookie token $token
+        wapp-set-cookie token $token [seconds 1y]
     }
 
     if { $authOk && $page eq "login" } {
