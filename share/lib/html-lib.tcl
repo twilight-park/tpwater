@@ -7,6 +7,10 @@ proc is-localhost? {} {
     return [string starts-with [wapp-param HTTP_HOST] "localhost:"]
 }
 
+proc is-hub? {} {
+    return $::HUB
+}
+
 proc check-auth { page } {
     if { [is-localhost?] } {
         return true
@@ -48,7 +52,7 @@ proc check-auth { page } {
     }
 
     if { $authOk && $page eq "login" } {
-        wapp-redirect /[wapp-param page monitor]
+        wapp-redirect /[wapp-param page [expr { [is-hub?] ? "monitor" : "status" }]]
         return false
     }
 

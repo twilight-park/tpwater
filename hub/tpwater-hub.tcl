@@ -4,6 +4,8 @@
 set script_dir [file dirname $argv0]
 source $script_dir/hub.cfg
 
+set HUB true
+
 set ADDR tcp!data.rkroll.com!$WEB_PORT
 set env(WATER) .:$MSG_PORT
 

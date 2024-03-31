@@ -7,6 +7,8 @@ set env(WATER) data.rkroll.com:8001
 set HOME $env(HOME)
 set TPWATER $HOME/tpwater
 
+set HUB false
+
 lappend auto_path $HOME/lib/tcl8/lib 
 lappend auto_path /usr/share/tcltk/tcllib1.20
 ::tcl::tm::path add $HOME/lib/tcl8/site-tcl
