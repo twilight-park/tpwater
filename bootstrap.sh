@@ -55,7 +55,6 @@ case $CMD in
         $0 copy $PI
 
         $0 remote $PI cell-down
-        # $0 remote $PI cell-metric
 
         $0 keys $PI
         $0 gitkeys $PI
@@ -208,6 +207,7 @@ case $CMD in
         ( cd tpwater/client/scripts
           sudo cp dhcpcd.enter-hook /etc/dhcpcd.enter-hook
         )
+        $0 cell-metric
         $0 cell-down
         $0 cell-up
         /usr/sbin/route -n
