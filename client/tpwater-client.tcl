@@ -210,7 +210,7 @@ proc sim-status {} {
 }
 
 if { [file exists /dev/ttyUSB2] } {
-    every 60000 sim-status
+    every [expr 60000*10] sim-status
 }
 
 set WEB_PORT 7777
