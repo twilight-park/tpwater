@@ -1,5 +1,6 @@
 
 package require jbr::string
+package require jbr::seconds
 package require jbr::filewatch
 
 proc is-localhost? {} {
