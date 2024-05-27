@@ -38,19 +38,19 @@ wapp-route GET /query/table/start/end {
 
     try {
         set sql [template:subst {
-            select time_measured,
+            select time_recorded,
                    [: c $!columns , { 
                        round(max(min((avg($!c) - [!$!c get zero])*[!$!c get scale], [!$!c get max]), [!$!c get min]), 2) as $!c 
                    }]
             from (
                 select 
-                    CAST(round(time_measured/60)*60 as INT) as time_measured, 
+                    CAST(round(time_recorded/60)*60 as INT) as time_recorded, 
                     [: c $!columns , { $!c }]
                 from $!table 
-                where time_measured > :start AND time_measured < :end
+                where time_recorded > :start AND time_recorded < :end
             )
-            group by time_measured
-            order by time_measured
+            group by time_recorded
+            order by time_recorded
         }]
         with stmt = [db prepare $sql] {
             with result = [$stmt execute] {
