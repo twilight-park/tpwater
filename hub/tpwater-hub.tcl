@@ -30,22 +30,19 @@ source $script_dir/../share/lib/passwd-reader.tcl
 source $script_dir/db-setup.tcl
 source $script_dir/http-service.tcl
 
+proc every {ms body} {
+    after $ms [list after idle [namespace code [info level 0]]]
+    try $body
+}
 
 msg_server WATER
 msg_deny   WATER internettl.org
 msg_allow  WATER *
 
-proc clk { var args } {
-    upvar $var clk
-    set clk [clock seconds]
+every 1000 {
+    set ::clk [clock seconds]
 }
-
-msg_publish WATER clk {} clk
-
-proc every {ms body} {
-    after $ms [list after idle [namespace code [info level 0]]]
-    try $body
-}
+msg_publish WATER clk
 
 proc print-var { name varname args } {
     upvar $varname var
