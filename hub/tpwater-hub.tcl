@@ -52,7 +52,6 @@ proc print-var { name varname args } {
 
 proc config-reader { dir } {
     set ::names {}
-    set ::config {}
     set ::outputs {}
 
     foreach config [glob -directory $dir -tails *.cfg] {

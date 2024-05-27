@@ -42,22 +42,21 @@ proc config-reader { dir apikey } {
     set ::outputs {}
 
     foreach config [glob -directory $dir -tails *.cfg] {
-        set configName [file rootname [file tail $config]]
-        lappend configs $configName
+        lappend configs $config
 
-        set ::$configName:status ?
-        msg_subscribe WATER $configName:status
+        print $config
+        set configuration [cat $dir/$config]
+        print $configuration
+        print
 
-        set ::$configName [cat $dir/$config]
-        if { [dict get [set ::$configName] apikey] eq $apikey } { 
-            set ::config $configName
-        }
-        print $configName [expr { $::config eq $configName ? "Local" : "Remote" }]
-        print [set ::$configName]
-
-        foreach { name params } [set ::$configName] {
+        foreach { name params } $configuration {
             if { [string index $name 0] eq "#" } { continue }
-            if { $name eq "apikey" } { continue }
+            if { $name eq "apikey" } { 
+                if { $apikey == $params } {
+                    set ::config $config
+                }
+                continue 
+            }
             if { $name eq "record" } {
                 set ::record $params
                 continue
@@ -66,7 +65,7 @@ proc config-reader { dir apikey } {
 
             # This config if NOT for this card
             #
-            if { $configName ne $::config } { 
+            if { $config ne $::config } { 
                 msg_subscribe WATER $name   ; # subscribe to all the names in the system
                 continue 
             }
@@ -221,6 +220,6 @@ if { [file exists /dev/ttyUSB2] } {
 }
 
 set WEB_PORT 7777
-wapp-start [list -server tcp!*!$WEB_PORT -nowait]
+wapp-start [list -server $WEB_PORT -nowait]
 
 vwait forever
