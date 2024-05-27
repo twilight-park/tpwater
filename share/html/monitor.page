@@ -67,7 +67,9 @@
         location.reload(true);
       }
       
+      [< press]
       [< ticker]
+      [< buttonState]
 
       function selectData(rawData, i, n) {
         const data = rawData.map(d => ({ x: new Date(d[0]*1000), y: d[i] }));
@@ -102,6 +104,7 @@
         );
       }
 
+
       function updatePage() {
         const url = "/values?page=monitor";
 
@@ -113,16 +116,11 @@
                 }
                 page = data.page;
 
-                document.getElementById("golf").textContent = typeof data.golf === "number" ? (data.golf ? "Golf Course :  ON" : "Golf Course : OFF") : "Golf Course : ???";
-                document.getElementById("golf").style.color = typeof data.golf === "number" && data.golf ? "green" : "blue";
-                document.getElementById("thrd").textContent = typeof data.thrd === "number" ? (data.thrd ? "Third Level :  ON" : "Third Level : OFF") : "Third Level : ???";
-                document.getElementById("thrd").style.color = typeof data.thrd === "number" && data.thrd ? "green" : "blue";
+                buttonState("auto", data.auto, data.auto, "Auto")
+                buttonState("golf", data.golf, data.giac, "Golf Course")
+                buttonState("thrd", data.thrd, data.tiac, "Third Level")
             }
         );
-      }
-
-      function press(b) {
-        fetch(`/press?button=${b}`).then(response => {});
       }
 
     const chartOptions = {
@@ -223,8 +221,9 @@
 
     <div><br></div>
     <div class=buttons>
-        <div class="buthdr"> <h1 class="chartTitle"><button id="golf" onClick="press('golf')">Golf Course</button></h1></div>
-        <div class="buthdr"> <h1 class="chartTitle"><button id="thrd" onClick="press('thrd')">Third Level</button></h1></div>
+        <div class="buthdr"> <h1><button id="auto" onClick="press('auto')">Auto</button></h1></div>
+        <div class="buthdr"> <h1><button id="golf" onClick="press('golf')">Golf Course</button></h1></div>
+        <div class="buthdr"> <h1><button id="thrd" onClick="press('thrd')">Third Level</button></h1></div>
     </div>
 </body>
 </html>

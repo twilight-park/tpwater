@@ -45,35 +45,31 @@ every 1000 {
 msg_publish WATER clk
 
 
-proc setauto { var args } {
-    upvar $var value
-    set ::auto $value
-}
-
-msg_publish WATER auto:request {} setauto
-
 proc print-var { name varname args } {
     upvar $varname var
     log print-var $name [set var] $args
 }
 
 proc config-reader { dir } {
+    set ::names {}
+    set ::config {}
+    set ::outputs {}
+
     foreach config [glob -directory $dir -tails *.cfg] {
         set configName [file rootname [file tail $config]]
         lappend configs $configName
 
-        set ::$configName:status ?
-        msg_publish WATER $configName:status
-
-        set ::$configName [cat $dir/$config]
-        print $configName
-        print [set ::$configName]
+        print $config
+        set configuration [cat $dir/$config]
+        print $configuration
         print
 
-        foreach { name params } [set ::$configName] {
+        foreach { name params } $configuration {
             if { $name eq "record" || [string starts-with $name "#"]} { continue }
             if { $name eq "apikey" } {
-                dict set ::apikeyMap $params $configName
+                if { [string length $params] > 10 } {
+                    dict set ::apikeyMap $params $configName
+                }
                 continue
             }
 
@@ -82,11 +78,14 @@ proc config-reader { dir } {
             channel create $name $name
             $name config $params
             set ::$name ??
-            msg_publish WATER $name {} ; # "print-var $name"
+            msg_publish WATER $name {} 
             dict lappend ::$configName names $name
 
             if { [$name get mode] eq "output" } {
-                msg_publish WATER $name:request {} ; # "print-var $name"
+                msg_publish WATER $name:request 
+                if { $config eq "hub.cfg" } {
+                    trace add variable ::$name:request write "set-state $name"
+                }
                 lappend ::outputs $name
             }
         }
@@ -96,6 +95,11 @@ proc config-reader { dir } {
         set ::$config:last 0
         set ::$config:late true
     }
+}
+
+proc set-state { name var args } {
+    upvar $var value
+    set ::$name $value
 }
 
 msg_srvproc WATER radio { time_measured args } {
@@ -160,7 +164,6 @@ set ::apikeyMap {}
 
 passwd-reader $::script_dir/../password
 
-set outputs auto
 set configs [config-reader $::script_dir/../share/config]
 
 msg_up WATER

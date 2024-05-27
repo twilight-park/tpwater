@@ -68,6 +68,7 @@ wapp-static ~/tpwater/ui ui nobrowse
 wapp-route GET /press {
     html-page press text/html {
         set button [wapp-param button]
+
         if { $button ni $::outputs } {
             return
         }
@@ -76,8 +77,8 @@ wapp-route GET /press {
 
         if { ![string is boolean $state] } { return }
 
-        set state [expr !$state]
-        set ::$button:request $state
+        set ::$button:request [expr !$state]
+        print set ::$button:request [expr !$state]
     }
 }
 

@@ -29,7 +29,10 @@ if { ![file exists $dbname] } {
 
 tdbc::sqlite3::connection create db $dbname
 
-    set columns { flow tank }
+    set columns [dict keys [db columns $table]]
+    print
+    print $columns
+    print
 
     set now   [clock seconds]
     set start [seconds $start $now]
@@ -37,16 +40,16 @@ tdbc::sqlite3::connection create db $dbname
 
     try {
         set sql [template:subst {
-            select time_measured, [: c $!columns , { $!c }]
+            select [: c $!columns , { $!c }]
             from (
                 select
-                    CAST(round(time_measured/60)*60 as INT) as time_measured,
+                    CAST(round(time_recorded/60)*60 as INT) as time_recorded,
                     [: c $!columns , { $!c }]
                 from $!table
-                where time_measured > :start AND time_measured < :end
+                where time_recorded > :start AND time_recorded < :end
             )
-            group by time_measured
-            order by time_measured
+            group by time_recorded
+            order by time_recorded
         }]
         print $start $end
         print $sql
