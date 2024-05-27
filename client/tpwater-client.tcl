@@ -197,6 +197,12 @@ msg_client WATER
 msg_apikey WATER $apikey
 msg_setreopen WATER 10000
 
+proc setdate { var args } {
+    upvar $var value
+    print exec sudo date -s @$value
+}
+msg_subscribe WATER clk {} setdate  [expr -60*60*24]
+
 set configs [config-reader $::script_dir/../share/config $apikey]
 set ::buttons $::outputs
 
