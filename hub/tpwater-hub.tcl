@@ -35,6 +35,13 @@ msg_server WATER
 msg_deny   WATER internettl.org
 msg_allow  WATER *
 
+proc clk { var args } {
+    upvar $var clk
+    set clk [clock seconds]
+}
+
+msg_publish WATER clk {} clk
+
 proc every {ms body} {
     after $ms [list after idle [namespace code [info level 0]]]
     try $body

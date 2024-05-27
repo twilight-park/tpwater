@@ -16,11 +16,11 @@ source $script_dir/pkg/json/json.tcl
 
 package require tdbc::sqlite3
 
-set start -36h
-set end   -12h
 
     set dbname  [lindex $argv 0]
     set table   [lindex $argv 1]
+    set start   [lindex $argv 2]
+    set end     [lindex $argv 3]
 
 if { ![file exists $dbname] } {
     print No DB
@@ -29,7 +29,7 @@ if { ![file exists $dbname] } {
 
 tdbc::sqlite3::connection create db $dbname
 
-    set columns { flow pres }
+    set columns { flow tank }
 
     set now   [clock seconds]
     set start [seconds $start $now]
@@ -48,6 +48,9 @@ tdbc::sqlite3::connection create db $dbname
             group by time_measured
             order by time_measured
         }]
+        print $start $end
+        print $sql
+
         with stmt = [db prepare $sql] {
             with result = [$stmt execute] {
                 foreach row [$result allrows -as lists] {

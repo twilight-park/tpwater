@@ -1,0 +1,17 @@
+#!/usr/bin/env tclsh
+#
+set script_dir [file dirname $argv0]
+set HOME $env(HOME)
+::tcl::tm::path add $HOME/lib/tcl8/site-tcl
+
+source pkg/jbr.tcl/msg/msg.tcl
+package require jbr::print
+
+set env(WATER) localhost:4000
+set env(MSGDEBUG) 1
+
+msg_client WATER
+
+print [msg_get WATER clk clk]
+
+vwait forever
