@@ -44,6 +44,14 @@ every 1000 {
 }
 msg_publish WATER clk
 
+
+proc setauto { var args } {
+    upvar $var value
+    set ::auto $value
+}
+
+msg_publish WATER auto:request {} setauto
+
 proc print-var { name varname args } {
     upvar $varname var
     log print-var $name [set var] $args
@@ -151,9 +159,9 @@ proc check { config } {
 set ::apikeyMap {}
 
 passwd-reader $::script_dir/../password
-set configs [config-reader $::script_dir/../share/config]
 
-set ::buttons $::names
+set outputs auto
+set configs [config-reader $::script_dir/../share/config]
 
 msg_up WATER
 msg_apikey WATER [dict keys $::apikeyMap]

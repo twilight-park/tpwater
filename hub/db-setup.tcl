@@ -9,6 +9,11 @@ package require tdbc::sqlite3
 tdbc::sqlite3::connection create db "$script_dir/../tpwater.db"
 
 set schema {
+    config {
+        { name string }
+        { value string }
+    }
+
     waterplant  {
         { time_measured integer }
         { time_recorded integer }
@@ -30,6 +35,12 @@ set schema {
         { thrd real }
         { tiac integer }
     }
+    testcard {
+        { time_measured integer }
+        { time_recorded integer }
+        { ana0 real }
+        { gpo0  integer }
+    }
 
     radio {
         { time_measured integer }
@@ -37,12 +48,6 @@ set schema {
         { station       string  }
         { op            string  }
         { db            integer }
-    }
-    testcard {
-        { time_measured integer }
-        { time_recorded integer }
-        { ana0 real }
-        { gpo0  integer }
     }
 }
 
@@ -56,4 +61,8 @@ proc db:record { table time_measured args } {
                (  time_recorded,  time_measured,  [!join [!dict keys $!args] ",  "])
         values ( :time_recorded, :time_measured, [!join [: key [!dict keys $!args] { :$!key }]  ", "] ) }
     }]
+}
+
+proc db-set { name value } {
+    sql db { INSERT OR REPLACE INTO status (name, value) VALUES ("%name", "%value") WHERE name = %name }
 }

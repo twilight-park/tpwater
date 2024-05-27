@@ -204,7 +204,6 @@ proc setdate { var args } {
 msg_subscribe WATER clk {} setdate  [expr -60*60*24]
 
 set configs [config-reader $::script_dir/../share/config $apikey]
-set ::buttons $::outputs
 
 readout
 
