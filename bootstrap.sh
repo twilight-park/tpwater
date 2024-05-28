@@ -124,6 +124,7 @@ case $CMD in
         )
         ( cd tpwater/pkg/jbr.tcl
           git pull 
+          make install-links
         )
         ( cd tpwater/pkg/wapp
           git pull 
@@ -339,3 +340,7 @@ Status:
 		AT+CREG?
 		AT+CPSI?
 
+Time:
+    AT+CTZU?
+    AT+CTZU=1
+    AT+CCLK?

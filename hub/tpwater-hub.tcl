@@ -173,7 +173,6 @@ passwd-reader $::script_dir/../password
 set configs [config-reader $::script_dir/../share/config]
 source $script_dir/state.cfg
 source $script_dir/rules.tcl
-print State $auto
 
 msg_up WATER
 msg_apikey WATER [dict keys $::apikeyMap]

@@ -63,6 +63,3 @@ proc db:record { table time_measured args } {
     }]
 }
 
-proc db-set { name value } {
-    sql db { INSERT OR REPLACE INTO status (name, value) VALUES ("%name", "%value") WHERE name = %name }
-}

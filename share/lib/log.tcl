@@ -6,7 +6,7 @@ proc log { args } {
 
     set msg "[clock format [clock seconds]] [concat $args]"
     echo $msg >> $LOGFILE
-    echo $msg
+    # echo $msg
 }
 
 proc log-error { args } {
