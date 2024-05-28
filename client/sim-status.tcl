@@ -73,11 +73,16 @@ proc line { tty cmd } {
 proc ATparse { status line } {
     set line [string map { { } {} {"} {} } $line]
     switch -glob $line {
+        +CCLK:* {
+            lassign [split $line -] line tz
+            set tz 0[expr { $tz*15/60*100 }] ; # This does not work for a TZ with a minutes offset.
+            set status [dict replace $status seconds [clock scan $line-$tz -format +CCLK:%y/%m/%d,%H:%M:%S%z]]
+        }
         +COPS:* {
-           set status [dict replace $status {*}[zip {- - op - } [split [lindex [split $line :] 1] ,]]]
-	   if { [dict get $status op] eq "" } {
-		dict set status op Unknown
-	   }
+            set status [dict replace $status {*}[zip {- - op - } [split [lindex [split $line :] 1] ,]]]
+            if { [dict get $status op] eq "" } {
+                dict set status op Unknown
+            }
         }
         +CSQ:* {
            set status [dict replace $status \
@@ -96,6 +101,7 @@ proc get-sim-status {} {
         fconfigure $tty -buffering none -mode 115200,n,8,1 
         set status [ATparse $status [line $tty AT+CSQ]]
         set status [ATparse $status [line $tty AT+COPS?]]
+        set status [ATparse $status [line $tty AT+CCLK?]]
 
         return $status
     }

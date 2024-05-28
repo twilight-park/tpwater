@@ -208,9 +208,10 @@ readout
 
 proc sim-status {} {
     try { 
-	set values [get-sim-status]
-	log sim status {*}$values
-	msg_cmd WATER "radio [clock seconds] $values" 0 nowait } on error e {
+        set values [get-sim-status]
+        log sim status {*}$values
+        msg_cmd WATER "radio [clock seconds] $values" 0 nowait 
+    } on error e {
         log-error $e
     }
 }
