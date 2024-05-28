@@ -30,9 +30,9 @@ if { ![file exists $dbname] } {
 tdbc::sqlite3::connection create db $dbname
 
     set columns [dict keys [db columns $table]]
-    print
-    print $columns
-    print
+    eprint
+    eprint $columns
+    eprint
 
     set now   [clock seconds]
     set start [seconds $start $now]
@@ -51,8 +51,8 @@ tdbc::sqlite3::connection create db $dbname
             group by time_recorded
             order by time_recorded
         }]
-        print $start $end
-        print $sql
+        eprint $start $end
+        eprint $sql
 
         with stmt = [db prepare $sql] {
             with result = [$stmt execute] {
