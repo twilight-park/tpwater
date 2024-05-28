@@ -30,8 +30,8 @@ source $script_dir/../share/lib/passwd-reader.tcl
 source $script_dir/db-setup.tcl
 source $script_dir/http-service.tcl
 
-proc every {ms body} {
-    after $ms [list after idle [namespace code [info level 0]]]
+proc every {interval body} {
+    after [milliseconds $interval] [list after idle [namespace code [info level 0]]]
     try $body
 }
 

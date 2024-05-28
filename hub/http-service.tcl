@@ -32,9 +32,8 @@ wapp-route GET /query/table/start/end {
     }
     timer query start
 
-    set now   [clock seconds]
-    set start [seconds $start $now]
-    set end   [seconds $end $now]
+    set end   [clock seconds]
+    set start [seconds $start $end]
 
     try {
         set sql [template:subst {

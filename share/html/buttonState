@@ -2,7 +2,7 @@
       function buttonState(name, request, actual, title) {
             var state = "OFF";
             var color = "blue";
-            if ( typeof request === "number" ) {
+            if ( typeof actual === "number" ) {
                 if ( actual == 1 ) {
                     state = " ON";
                 }
