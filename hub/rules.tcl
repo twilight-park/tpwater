@@ -1,6 +1,4 @@
 
-set ::auto 0
-
 every 5000 {
     try {
         if { $::auto } {
@@ -8,7 +6,7 @@ every 5000 {
                 set ::golf:request 1
                 # set ::thrd:request 1
             }
-            if { $::tank >= 101 } {
+            if { $::tank >= 102 } {
                 set ::golf:request 0
                 # set ::thrd:request 0
             }

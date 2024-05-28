@@ -99,6 +99,13 @@ proc config-reader { dir } {
 proc set-state { name var args } {
     upvar $var value
     set ::$name $value
+
+    save-state
+}
+proc save-state {} {
+    echo [subst {
+        set auto $::auto
+    }] > $::script_dir/state.cfg
 }
 
 msg_srvproc WATER radio { time_measured args } {
@@ -164,6 +171,9 @@ set ::apikeyMap {}
 passwd-reader $::script_dir/../password
 
 set configs [config-reader $::script_dir/../share/config]
+source $script_dir/state.cfg
+source $script_dir/rules.tcl
+print State $auto
 
 msg_up WATER
 msg_apikey WATER [dict keys $::apikeyMap]
@@ -171,8 +181,6 @@ msg_apikey WATER [dict keys $::apikeyMap]
 foreach config $configs {
     every 1000 check $config
 }
-
-source $script_dir/rules.tcl
 
 
 vwait forever
