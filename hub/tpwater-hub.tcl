@@ -94,6 +94,8 @@ proc config-reader { dir } {
         set ::$config:last 0
         set ::$config:late true
     }
+
+    return $configs
 }
 
 proc set-state { name var args } {
@@ -133,11 +135,11 @@ msg_srvproc WATER rec { seconds args } {
 
         set last [set ::$config:last]
         set delta [expr { abs($seconds - $last) }]
-        if { $last != 0 && $delta > 25 } {
+        if { $last != 0 && $delta > 60 } {
             log Dropped $delta seconds from $last to $seconds
         }
         set ::$config:last $seconds
-        set ::l$config:ate false
+        set ::$config:late false
 
         set ::$config:last $seconds
         db:record $config $seconds {*}[zip $names $args]
@@ -160,9 +162,14 @@ proc check { config } {
     set late [set ::$config:late]
 
     set delta [expr { abs($now - $last) }]
-    if { !$late && $delta > 25 } {
+    if { !$late && $delta > 60 } {
         log "Packet late $delta seconds at $now"
         set ::$config:late true
+        set names  [dict get [set ::$config] names]
+        foreach name $names {
+            print set ::$name "???"
+            set ::$name "???"
+        }
     }
 }
 
@@ -178,7 +185,7 @@ msg_up WATER
 msg_apikey WATER [dict keys $::apikeyMap]
 
 foreach config $configs {
-    every 1000 check $config
+    every 1000 "check $config"
 }
 
 
