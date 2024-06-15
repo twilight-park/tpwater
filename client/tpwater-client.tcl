@@ -63,7 +63,7 @@ proc config-reader { dir apikey } {
             }
             lappend ::names $name
 
-            # This config if NOT for this card
+            # This config is NOT for this card
             #
             if { $config ne $::config } { 
                 msg_subscribe WATER $name   ; # subscribe to all the names in the system
@@ -195,9 +195,10 @@ proc setstate { server sock id op } {
     upvar #0 $server S
     print SETSTATE $server $id -> $S(connection)
     if { $S(connection) ne "Up" } {
-        foreach $value $::outputs {
-            print set ::$value "???"
-            set ::$value "???"
+        foreach $name $::outputs {
+            $name write 0
+            set ::$name 0
+            print set ::$value 0
         }
     }
 }
