@@ -130,8 +130,8 @@ proc set-state { name var args } {
     try { msg_set WATER $name $value {} async } on error e { print $::errorInfo }
 }
 
-proc every {ms body} {
-    after $ms [list after idle [namespace code [info level 0]]]
+proc every {interval body} {
+    after [milliseconds $interval] [list after idle [namespace code [info level 0]]]
     try $body
 }
 
@@ -191,10 +191,22 @@ set apikey [cat $HOME/apikey]
 
 passwd-reader $::script_dir/../password
 
+proc setstate { server sock id op } {
+    upvar #0 $server S
+    print SETSTATE $server $id -> $S(connection)
+    if { $S(connection) ne "Up" } {
+        foreach $value $::outputs {
+            print set ::$value "???"
+            set ::$value "???"
+        }
+    }
+}
+
 
 msg_client WATER
 msg_apikey WATER $apikey
 msg_setreopen WATER 10000
+msg_keepalive WATER 5000 60000 setstate
 
 proc setdate { var args } {
     upvar $var value
