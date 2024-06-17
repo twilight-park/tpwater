@@ -9,10 +9,6 @@ set HUB true
 set ADDR data.rkroll.com:$WEB_PORT
 set env(WATER) .:$MSG_PORT
 
-set HOME $env(HOME)
-
-::tcl::tm::path add $HOME/lib/tcl8/site-tcl
-
 package require jbr::msg
 package require jbr::unix
 package require jbr::with
@@ -138,10 +134,8 @@ msg_srvproc WATER rec { seconds args } {
         if { $last != 0 && $delta > 60 } {
             log Dropped $delta seconds from $last to $seconds
         }
-        set ::$config:last $seconds
         set ::$config:late false
-
-        set ::$config:last $seconds
+        set ::$config:last $now
         db:record $config $seconds {*}[zip $names $args]
 
 
@@ -182,6 +176,7 @@ source $script_dir/state.cfg
 source $script_dir/rules.tcl
 
 msg_up WATER
+msg_apikey WATER localhost
 msg_apikey WATER [dict keys $::apikeyMap]
 
 foreach config $configs {
