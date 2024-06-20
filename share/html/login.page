@@ -1,13 +1,30 @@
 <html>
 <head>
- <meta name="viewport" content="width=device-width, initial-scale=1">
   <style type="text/css">
-    body * {
-       font-family: "courier new", courier, monospace;
-       font-size: 4vw;
+      body { font-size: 32px; }
+
+    .hdr { margin-bottom: 20px; }
+
+    .form-container { display: flex; justify-content: center; }
+
+    .form-group { display: flex; align-items: center; margin-bottom: 20px; }
+    .form-group label { width: 150px; text-align: right; margin-right: 10px; font-size: 1em; }
+
+    .form-group input[type="text"],
+    .form-group input[type="password"] { width: 20ch; padding: 10px; font-size: 1em; }
+    .form-group input[type="submit"] { margin-left: 10px; padding: 10px 20px; font-size: 1em; }
+
+    @media screen and (max-width: 650px) {
+      body { font-size: 4vw; }
+
+      .form-group { flex-direction: column; align-items: stretch; }
+      .form-group label { width: auto; text-align: left; margin-bottom: 5px; font-size: 1.2em; }
+
+      .form-group input[type="text"],
+      .form-group input[type="password"] { width: 100%; font-size: 1.2em; }
+      .form-group input[type="submit"] { margin-left: 0; width: 100%; font-size: 1.2em; }
     }
   </style>
-
   <script type="module"> 
       const spinRate = 250;
       var spinState = 0;
@@ -21,20 +38,24 @@
     setInterval(() => { ticker(); }, spinRate);
   </script>
 </head>
+
 <body>
-    <div class="hdr">
-    <h4><b>Twilight Park Water Monitor</b>
-        &nbsp:&nbsp
-        <text id=spinner>spinner</text>
-    </h4>
-    </div>
-    <p><b>Please Login</b></p>
-    <div>
-        <form> <pre>
-    <b>name</b>      <input name=user type=text     size=20/>
-    <b>password</b> <input name=pass type=password size=20/>  <input value=Go type=submit>
-        </pre> </form>
-    </div>
+  <div class="hdr">
+    <h4><b>Twilight Park Water Monitor</b> &nbsp:&nbsp <text id="spinner">spinner</text></h4>
+  </div>
+  <p><b>Please Login</b></p>
+  <div class="form-container">
+    <form>
+      <div class="form-group">
+        <label for="user"><b>name</b></label>
+        <input id="user" name="user" type="text" size="20"/>
+      </div>
+      <div class="form-group">
+        <label for="pass"><b>password</b></label>
+        <input id="pass" name="pass" type="password" size="20"/>
+        <input value="Go" type="submit">
+      </div>
+    </form>
+  </div>
 </body>
 </html>
-
