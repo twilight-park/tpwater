@@ -62,7 +62,7 @@ wapp-route GET /query/table/start/end {
     }
 }
 
-wapp-static ~/tpwater/ui ui nobrowse
+wapp-static $::script_dir/../share/static ui nobrowse
 
 wapp-route GET /press {
     html-page press text/html {
