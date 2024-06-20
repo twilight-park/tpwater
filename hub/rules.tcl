@@ -2,7 +2,7 @@
 every 5000 {
     try {
         if { $::auto } {
-            if { $::tank <= 100 } {
+            if { round($::tank) <= 100 } {
                 set ::golf:request 1
                 set ::thrd:request 1
             }
