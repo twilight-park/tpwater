@@ -1,9 +1,10 @@
 <html>
 <head>
+ <meta name="viewport" content="width=device-width, initial-scale=1">
   <style type="text/css">
-    pre {
+    body * {
        font-family: "courier new", courier, monospace;
-       font-size: 150%;
+       font-size: 125%;
     }
   </style>
 
@@ -27,11 +28,11 @@
         <text id=spinner>spinner</text>
     </h4>
     </div>
-    <h4>Please Login</h4>
+    <p><b>Please Login</b></p>
     <div>
         <form> <pre>
-        <b>name</b>     <input name=user type=text     size=20/>
-        <b>password</b> <input name=pass type=password size=20/>  <input value=Go type=submit>
+    <b>name</b>      <input name=user type=text     size=20/>
+    <b>password</b> <input name=pass type=password size=20/>  <input value=Go type=submit>
         </pre> </form>
     </div>
 </body>
