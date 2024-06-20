@@ -10,10 +10,6 @@ wapp-route GET /favicon.ico {
     try { wapp [bcat $::script_dir/../share/static/favicon.ico] } on error e { log-eror $e }
 }
 
-wapp-route GET /login   { html-page login }
-wapp-route GET /status  { html-page status }
-wapp-route GET /monitor { html-page monitor }
-
 wapp-route GET /logout   {
     wapp-clear-cookie token 
     wapp-redirect /login
@@ -33,7 +29,5 @@ wapp-route GET /values {
 }
 
 proc wapp-default {} {
-    wapp-mimetype text/html
-    wapp-log info "[wapp-param REMOTE_ADDR] [wapp-param PATH_INFO] Go Away"
-    wapp-reply-code ABORT
+    html-page [string range [wapp-param PATH_INFO] 1 end]
 }

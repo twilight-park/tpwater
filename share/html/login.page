@@ -4,7 +4,7 @@
   <style type="text/css">
     body * {
        font-family: "courier new", courier, monospace;
-       font-size: 125%;
+       font-size: 4vw;
     }
   </style>
 
