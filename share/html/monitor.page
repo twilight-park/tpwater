@@ -173,7 +173,7 @@
     }
 
     setInterval(() => { ticker(); }, spinRate);
-    setInterval(() => { updatePage(); }, 2000);
+    setInterval(() => { updatePage(); }, 5000);
     setInterval(() => { updateCharts(); }, 20000);
     setInterval(() => { reloadPage(); }, 1000*60*60);
 
