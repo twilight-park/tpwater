@@ -20,7 +20,6 @@ proc check-auth { page } {
     set user  [wapp-param user]
     set pass  [wapp-param pass]
 
-
     set authOk false
 
     if { ![info exists ::password] } {
@@ -37,11 +36,11 @@ proc check-auth { page } {
 
     if { $user ne {} } {
         set pass [md5sum $pass]
-        set auth [dict get? $::password $user]
+        set auth [dict get? $::password $pass]
 
         if { $auth ne {} } {
-            if { $pass eq [lindex $auth 1] } {
-                set token [lindex $auth 1]
+            if { $user eq [lindex $auth 1] } {
+                set token $pass
                 set authOk true
             }
         }
@@ -63,6 +62,7 @@ proc check-auth { page } {
     if { !$authOk } {
         wapp-redirect /login?page=$page
     }
+
     return $authOk
 }
 
