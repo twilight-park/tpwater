@@ -2,6 +2,8 @@
 #
 # export MSGDEBUG=1
 
+export TCL8_4_TM_PATH=~/lib/tcl8/site-tcl
+
 if [ -f $HOME/apikey ] ; then MODE=client
 else MODE=hub; fi
 
