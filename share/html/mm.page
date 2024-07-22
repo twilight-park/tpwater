@@ -56,7 +56,7 @@
 
       var dataLast;
       const dataStale = 120*1000;
-      const spinRate = 100;
+      const spinRate = 250;
       var spinState = 0;
 
       var page = null;
@@ -70,7 +70,9 @@
       
       [< press]
       [< ticker]
+
       [< buttonState]
+      [< filter]
 
       function selectData(rawData, i, n) {
         const data = rawData.map(d => ({ x: new Date(d[0]*1000), y: d[i] }));
@@ -92,14 +94,29 @@
                 const { data: flowData, last: flowLast } = selectData(data, 1, 10);
                 const { data: tankData, last: tankLast } = selectData(data, 2, 10);
 
+                const  D = filterNoisySpikes(data, 15, 5, 2, 5, null);
+
+                const { data: flowFilt, last: flowFast } = selectData(D, 1, 10);
+
+                const [Count, Sum] = flowData.reduce((a, v) => {
+                        if ( typeof v.y !== 'number' ) {
+                            return a;
+                        }
+                        return [a[0] + 1, a[1] + v.y];
+                    }, [0, 0]);
+                const GPD = Sum/Count * 60*24;
+                const DTE = tankLast*1000 / GPD;
 
                 dataLast = new Date(data[data.length-2][0] * 1000);
 
                 document.getElementById("dataLast").textContent = dataLast.toLocaleString();
-                document.getElementById("flowLast").textContent = (typeof flowLast === 'number' ? flowLast.toFixed(0) : "???") + " GPM";
+                document.getElementById("flowLast").textContent = (typeof flowFast === 'number' ? flowFast.toFixed(0) : "???") + " GPM";
+                document.getElementById("flowTotal").textContent = (typeof GPD === 'number' ? GPD.toFixed(0) : "???");
+                document.getElementById("flowEmpty").textContent = (typeof DTE === 'number' ? DTE.toFixed(0) : "???");
                 document.getElementById("tankLast").textContent = (typeof tankLast === 'number' ? tankLast.toFixed(0) : "???") + "%";
 
-                flowChart.update({ series: [flowData] });
+                
+                flowChart.update({ series: [flowData, flowFilt] });
                 tankChart.update({ series: [tankData] });
             }
         );
@@ -174,9 +191,9 @@
     }
 
     setInterval(() => { ticker(); }, spinRate);
-    setInterval(() => { updatePage(); }, 1000);
-    setInterval(() => { updateCharts(); }, 5000);
-    setInterval(() => { reloadPage(); }, 10000);
+    setInterval(() => { updatePage(); }, 5000);
+    setInterval(() => { updateCharts(); }, 20000);
+    setInterval(() => { reloadPage(); }, 1000*60*60);
 
     window.loadPage = loadPage;
     window.updateCharts = updateCharts;
@@ -211,7 +228,10 @@
     <div style="clear:both"></div>
 
     <div>
-    <div class="hdr"> <center><h1 class="chartTitle">Water Flow<span id=flowLast>Flow</span></h1></center></div>
+    <div class="hdr"> <center><h1 class="chartTitle">Water Flow
+        <span id=flowLast>Flow</span>
+    </center></h1>
+    </div>
     <div id="flowChart" class="chart"></div>
     </div>
 
@@ -225,6 +245,14 @@
         <div class="buthdr"> <h1><button id="auto" onClick="press('auto')">Auto</button></h1></div>
         <div class="buthdr"> <h1><button id="golf" onClick="press('golf')">Golf Course</button></h1></div>
         <div class="buthdr"> <h1><button id="thrd" onClick="press('thrd')">Third Level</button></h1></div>
+    </div>
+    <br>
+    <br>
+    <br>
+    <div>
+        <b>Gallons / Day <span id=flowTotal>???</span><b>
+        <br>
+        <b>Days To Empty <span id=flowEmpty>???</span><b>
     </div>
 </body>
 </html>
