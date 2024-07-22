@@ -7,6 +7,7 @@ source $script_dir/hub.cfg
 set HUB true
 
 set ADDR data.rkroll.com:$WEB_PORT
+set ADDR *:$WEB_PORT
 set env(WATER) .:$MSG_PORT
 
 package require jbr::msg

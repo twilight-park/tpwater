@@ -77,7 +77,6 @@ wapp-route GET /press {
         if { ![string is boolean $state] } { return }
 
         set ::$button:request [expr !$state]
-        print set ::$button:request [expr !$state]
     }
 }
 
