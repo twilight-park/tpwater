@@ -2,11 +2,11 @@
 every 5000 {
     try {
         if { $::auto } {
-            if { round($::tank) <= 100 } {
+            if { $::tank <= 101.5 } {
                 set ::golf:request 1
                 set ::thrd:request 1
             }
-            if { $::tank >= 102 } {
+            if { $::tank > 102.5 } {
                 set ::golf:request 0
                 set ::thrd:request 0
             }
