@@ -1,3 +1,4 @@
-*/2 * * * * /home/john/tpwater-rev2/tpwater.sh   start
-45   2 * * * /home/john/tpwater-rev2/tpwaterg.sh restart
-28 0 * * * "/home/john/.acme.sh"/acme.sh --cron --home "/home/john/.acme.sh" > /dev/null
+*/2  * * * * /home/john/tpwater-rev2/tpwater.sh   start
+45   2 * * * /home/john/tpwater-rev2/tpwater.sh restart
+50   2 * * * find /home/john/tpwater-rev2/log -type f -mtime +7 -delete
+28   0 * * * /home/john/.acme.sh/acme.sh --cron --home /home/john/.acme.sh > /dev/null
