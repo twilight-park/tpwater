@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Status Notifications Opt-in</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        form {
+            background-color: #f4f4f4;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="text"],
+        input[type="tel"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        .signature-area {
+            margin-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .signature-field {
+            flex-grow: 1;
+            margin-right: 20px;
+        }
+        .date-field {
+            width: 150px;
+        }
+    </style>
+</head>
+<body>
+    <h1>System Status Notifications Opt-in</h1>
+    <form>
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required>
+
+        <label for="phone">Phone Number:</label>
+        <input type="tel" id="phone" name="phone" required>
+
+        <label>
+            <input type="checkbox" id="consent" name="consent" required>
+            I consent to receive periodic system status notifications on my registered phone number.
+        </label>
+
+        <div class="signature-area">
+            <div class="signature-field">
+                <label for="signature">Signature:</label>
+                <input type="text" id="signature" name="signature" required>
+            </div>
+
+            <div class="date-field">
+                <label for="date">Date:</label>
+                <input type="text" id="date" name="date" required>
+            </div>
+        </div>
+    </form>
+</body>
+</html>

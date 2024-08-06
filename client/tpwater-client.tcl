@@ -15,10 +15,11 @@ lappend auto_path /usr/share/tcltk/tcllib1.20
 
 package require coroutine::auto
 
-package require jbr::func
-package require jbr::with
-package require jbr::unix
 package require jbr::msg
+package require jbr::func
+package require jbr::unix
+package require jbr::with
+package require jbr::seconds
 
 set LOGPATH $::script_dir/../log
 set LOGTAIL [file rootname [file tail $::argv0]]
@@ -128,11 +129,6 @@ proc set-state { name var args } {
     $name write $value
     set ::$name $value
     try { msg_set WATER $name $value {} async } on error e { print $::errorInfo }
-}
-
-proc every {interval body} {
-    after [milliseconds $interval] [list after idle [namespace code [info level 0]]]
-    try $body
 }
 
 proc avg { l } {

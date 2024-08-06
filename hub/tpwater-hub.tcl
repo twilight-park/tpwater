@@ -15,22 +15,20 @@ package require jbr::unix
 package require jbr::with
 package require jbr::print
 package require jbr::string
+package require jbr::seconds
 
 set LOGPATH $::script_dir/../log
 set LOGTAIL [file rootname [file tail $::argv0]]
 
+source $script_dir/../share/lib/log.tcl
+
 source $script_dir/../share/lib/channel.tcl
 source $script_dir/../share/lib/codec-lib.tcl
-source $script_dir/../share/lib/log.tcl
 source $script_dir/../share/lib/passwd-reader.tcl
 
+source $script_dir/notify.tcl
 source $script_dir/db-setup.tcl
 source $script_dir/http-service.tcl
-
-proc every {interval body} {
-    after [milliseconds $interval] [list after idle [namespace code [info level 0]]]
-    try $body
-}
 
 msg_server WATER
 msg_deny   WATER internettl.org
@@ -127,13 +125,13 @@ msg_srvproc WATER rec { seconds args } {
 
         set delta [expr { abs($now - $seconds) }]
         if { $delta > 2 } {
-            log Oops $config $now $seconds : $delta
+            # log Oops $config $now $seconds : $delta
         }
 
         set last [set ::$config:last]
         set delta [expr { abs($seconds - $last) }]
         if { $last != 0 && $delta > 60 } {
-            log Dropped $delta seconds from $last to $seconds
+            # log Dropped $delta seconds from $last to $seconds
         }
         set ::$config:late false
         set ::$config:last $now

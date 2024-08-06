@@ -2,6 +2,7 @@
 #
 # export MSGDEBUG=1
 
+. $HOME/.twillio
 export TCL8_4_TM_PATH=~/lib/tcl8/site-tcl
 
 if [ -f $HOME/apikey ] ; then MODE=client
