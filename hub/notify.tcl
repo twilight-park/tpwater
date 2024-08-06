@@ -33,3 +33,12 @@ proc notify { type args } {
         echo [subst { set ::noted "$::noted" }] > $::script_dir/noted.cfg
     }
 }
+
+proc try-rule { name action } {
+    try {
+        uplevel $action
+    } on error msg {
+        log RULE Error: $name $msg
+    }
+}
+

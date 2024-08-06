@@ -1,17 +1,5 @@
 
-package require jbr::cron
-package require jbr::seconds
-package require jbr::twillio
-
 source $script_dir/rolling_gpm.tcl
-
-proc try-rule { name action } {
-    try {
-        uplevel $action
-    } on error msg {
-        log RULE Error: $name $msg
-    }
-}
 
 every 5000 {
     try {
@@ -50,3 +38,4 @@ cron { every 2m at 5s } {
         }
     }
 }
+
