@@ -1,5 +1,12 @@
 #!/usr/bin/env tclsh
 #
+package require jbr::msg
+package require jbr::unix
+package require jbr::with
+package require jbr::print
+package require jbr::string
+package require jbr::seconds
+
 
 set script_dir [file dirname $argv0]
 source $script_dir/hub.cfg
@@ -9,13 +16,6 @@ set HUB true
 set ADDR data.rkroll.com:$WEB_PORT
 set ADDR *:$WEB_PORT
 set env(WATER) .:$MSG_PORT
-
-package require jbr::msg
-package require jbr::unix
-package require jbr::with
-package require jbr::print
-package require jbr::string
-package require jbr::seconds
 
 set LOGPATH $::script_dir/../log
 set LOGTAIL [file rootname [file tail $::argv0]]

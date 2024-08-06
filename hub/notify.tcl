@@ -7,17 +7,18 @@ source $script_dir/noted.cfg
 
 proc notify { type args } {
     set note [dict get $::notifications $type]
+    set rate [dict get $note rate]
+    set last [dict get $::noted $type]
+
+    if { [clock milliseconds] - $last < [milliseconds $rate] } {
+        print Skip Notify $type : $args
+        return
+    }
+
     set from [dict get $::notifications PEOPLE [dict get $note from] phone]
     set send [dict get $::notifications SEND driver]
 
     foreach person [dict get $note people] {
-        set rate [dict get $note rate]
-        set last [dict get $::noted $type]
-
-        if { [clock milliseconds] - $last < [milliseconds $rate] } {
-            print Skip Notify $type : $args
-            return
-        }
 
         set to [dict get $::notifications PEOPLE $person phone]
         set msg [dict get $note message]
