@@ -49,7 +49,13 @@
     </style>
 </head>
 <body>
-    <h1>System Status Notifications Opt-in</h1>
+    <H2>Twilight Park Notifications Opt-in</H2>
+
+This form allows you to opt-in to receive important system status notifications
+via text message. These notifications will keep you informed about critical
+updates, maintenance, and potential issues related to our systems.
+<br>
+<br>
     <form>
         <label for="name">Name:</label>
         <input type="text" id="name" name="name" required>
@@ -59,7 +65,7 @@
 
         <label>
             <input type="checkbox" id="consent" name="consent" required>
-            I consent to receive periodic system status notifications on my registered phone number.
+            I consent to receive periodic system notifications via text message on my registered phone number.
         </label>
 
         <div class="signature-area">
