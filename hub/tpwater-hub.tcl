@@ -31,6 +31,7 @@ source $script_dir/../share/lib/passwd-reader.tcl
 source $script_dir/notify.tcl
 source $script_dir/db-setup.tcl
 source $script_dir/http-service.tcl
+source $script_dir/rolling_gpm.tcl
 
 msg_server WATER
 msg_deny   WATER internettl.org

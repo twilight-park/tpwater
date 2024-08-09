@@ -14,6 +14,29 @@ source $script_dir/../share/lib/page-lib.tcl
 source $script_dir/../pkg/json/json.tcl
 
 
+wapp-route GET /query2/lookback/window/frequency {
+    wapp-cache-control no-cache
+    wapp-mimetype application/json
+
+    if { $lookback eq "" } { return }
+    if { $window eq "" } { set window 1m }
+    if { $frequency eq "" } { set frequency 1m }
+
+    timer query start
+
+    try {
+        set data [rolling_gpm db waterplant time_recorded flow $lookback $window $frequency]
+        set data [map row $data {
+            lassign $row time flow x y
+            list $time [flow scaled $flow]
+        }]
+        print [lindex $data 1]
+        wapp [json::encode [list { array array number } $data]]
+    } on error msg {
+        log-error $msg
+    }
+}
+
 wapp-route GET /query/table/start/end {
     wapp-cache-control no-cache
     wapp-mimetype application/json

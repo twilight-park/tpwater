@@ -1,6 +1,4 @@
 
-source $script_dir/rolling_gpm.tcl
-
 every 5000 {
     try {
         if { $::auto } {

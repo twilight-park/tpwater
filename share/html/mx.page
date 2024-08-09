@@ -1,0 +1,254 @@
+<html>
+<head>
+  <link rel="icon" href="/ui/favicon.ico" type="image/x-icon">
+  [< chartist]
+
+  <style type="text/css">
+    .chart#flowChart {
+        height: 40%;
+        width: 100%;
+    }
+    .chart#tankChart {
+        height: 25%;
+        width: 100%;
+    }
+    .chartTitle {
+        margin: 5px;
+    }
+    .ct-series-a .ct-line {
+        stroke: blue;
+        stroke-width: 2;
+    }
+    .hdr {
+        display: inline;
+        position: fixed;
+        width: 95%
+    }
+    .hdr h1 {
+        font-weight: bold;
+        font-size: 40px;
+    }
+    .hdr div {
+        float: right;
+    }
+    .hdr h4 {
+        display: inline;
+    }
+    .buthdr {
+        display: inline;
+    }
+    .hline {
+        width: 95%
+    }
+    .hline h1 {
+        font-weight: bold;
+    }
+    .hline div {
+        float: right;
+    }
+    div.buttons {
+        display: flex;
+        justify-content: space-around;
+        position: fixed;
+        bottom: 15%;
+        width: 100%;
+    }
+    .buthdr button {
+        display: inline;
+        font-weight: bold;
+        font-size: 125%;
+    }
+  </style>
+
+  <script type="module"> 
+
+      var dataLast;
+      const dataStale = 120*1000;
+      const spinRate = 250;
+      var spinState = 0;
+
+      var page = null;
+
+      var flowChart;
+
+      var tankLast;
+
+      function reloadPage() {
+        location.reload(true);
+      }
+      
+      [< press]
+      [< ticker]
+
+      [< buttonState]
+      [< filter]
+
+      function selectData(rawData, i, n) {
+        const data = rawData.map(d => ({ x: new Date(d[0]*1000), y: d[i] }));
+        const last = data[data.length-2]?.y;
+
+        return { data: data, last: last }
+      }
+
+      function updateCharts() {
+        const lookback = document.getElementById("lookback");
+
+        // const url = `/query/waterplant/-2h/-30`;
+        const url = `/query2/${lookback.value}`;
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+
+                const { data: flowData, last: flowLast } = selectData(data, 1, 10);
+
+                const [Count, Sum] = flowData.reduce((a, v) => {
+                        if ( typeof v.y !== 'number' ) {
+                            return a;
+                        }
+                        return [a[0] + 1, a[1] + v.y];
+                    }, [0, 0]);
+                const GPD = Sum/Count * 60*24;
+                const DTE = tankLast*1000 / GPD;
+
+                dataLast = new Date(data[data.length-2][0] * 1000);
+
+                document.getElementById("dataLast").textContent = dataLast.toLocaleString();
+                document.getElementById("flowTotal").textContent = (typeof GPD === 'number' ? GPD.toFixed(0) : "???");
+                document.getElementById("flowEmpty").textContent = (typeof DTE === 'number' ? DTE.toFixed(0) : "???");
+                
+                flowChart.update({ series: [flowData] });
+            }
+        );
+      }
+
+
+      function updatePage() {
+        const url = "/values?page=monitor";
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if ( page != null && page != data.page ) {
+                    reloadPage()
+                }
+                page = data.page;
+
+                buttonState("auto", data.auto, data.auto, "Auto")
+                buttonState("golf", data.golf, data.giac, "Golf Course")
+                buttonState("thrd", data.thrd, data.tiac, "Third Level")
+
+                document.getElementById("flowLast").textContent = (typeof data.flow === 'number' ? data.flow.toFixed(0) : "???");
+                document.getElementById("tankLast").textContent = (typeof data.tank === 'number' ? data.tank.toFixed(0) : "???");
+
+                tankLast = data.tank
+            }
+        );
+      }
+
+    const chartOptions = {
+      showPoint: false,
+      showGrid: false,
+      axisX: { 
+          type: FixedScaleAxis,
+          showGrid: false,
+          divisor: 12,
+          labelInterpolationFnc: value =>
+            new Date(value).toLocaleString(undefined, {
+              hour: 'numeric',
+              minute: 'numeric'
+            })
+      },
+      axisY: { 
+          type: FixedScaleAxis,
+          showGrid: false,
+          onlyInteger: true
+      }
+    }
+    const flowChartOptions = {
+        ... chartOptions,
+        axisY: {
+            ... chartOptions.axisY,
+            low:   0,
+            high:  [!flow get max],
+            ticks: [0, 10, 20, 30, 40, 50]
+        }
+    }
+
+    function loadPage() {
+        flowChart = new LineChart("#flowChart", { series: [[]] }, flowChartOptions);
+
+        updateCharts();
+    }
+
+    function logout() {
+        window.location="/logout";
+    }
+
+    setInterval(() => { ticker(); }, spinRate);
+    setInterval(() => { updatePage(); }, 5000);
+    setInterval(() => { updateCharts(); }, 20000);
+    setInterval(() => { reloadPage(); }, 1000*60*60);
+
+    window.loadPage = loadPage;
+    window.updateCharts = updateCharts;
+    window.updatePage = updatePage;
+    window.logout = logout;
+    window.press = press;
+  </script>
+</head>
+
+<body onLoad="loadPage()">
+    <div class="hdr">
+        <h4><b>Twilight Park Water Monitor</b>
+            &nbsp:&nbsp
+            <text id=dataLast>Timer</text>
+            &nbsp:&nbsp
+            <text id=spinner>spinner</text>
+        </h4>
+        <div>
+            Look Back 
+            <select name="lookback" id="lookback" onChange="updateCharts();">
+                  <option value="1h">Hour</option>
+                  <option value="1d" selected>Day</option>
+                  <option value="1w">Week</option>
+                  <option value="1t">Month</option>
+            </select>
+            &nbsp
+            <button onClick='logout()'>Logout</button>
+        </div>
+    </div>
+    <br>
+    <br>
+    <div style="clear:both"></div>
+
+    <div>
+        <div class="hdr"> <center><h1 class="chartTitle">Water Flow
+            <div><span id=flowLast>???</span> GPM</div>
+        </h1></center></div>
+
+        <div id="flowChart" class="chart"></div>
+    </div>
+
+    <div class="hline"> <center><h1 class="chartTitle">Tank Level
+        <div><span id=tankLast>???</span>%</div>
+    </h1></center></div>
+
+    <div class="hline"> <center><h1 class="chartTitle">Flow Total
+        <div><span id=flowTotal>???</span> GPD</div>
+    </h1></center></div>
+
+    <div class="hline"> <center><h1 class="chartTitle">Days To Empty
+        <div><span id=flowEmpty>???</span> Days</div>
+    </h1></center></div>
+
+    <div><br></div>
+    <div class=buttons>
+        <div class="buthdr"> <h1><button id="auto" onClick="press('auto')">Auto</button></h1></div>
+        <div class="buthdr"> <h1><button id="golf" onClick="press('golf')">Golf Course</button></h1></div>
+        <div class="buthdr"> <h1><button id="thrd" onClick="press('thrd')">Third Level</button></h1></div>
+    </div>
+    <br>
+    <br>
+    <br>
+</body>
+</html>
