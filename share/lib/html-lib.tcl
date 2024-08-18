@@ -115,7 +115,6 @@ proc html-page { page { mime text/html } {
 
         eval $code
     } on error e { 
-        log-error $e
         wapp-log info "[wapp-param REMOTE_ADDR] [wapp-param PATH_INFO] Go Away"
         wapp-reply-code ABORT
     }

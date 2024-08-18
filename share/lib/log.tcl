@@ -7,10 +7,8 @@ proc log { args } {
     set now [clock seconds]
     set msg "$now [clock format $now] [concat $args]"
     echo $msg >> $LOGFILE
-    # echo $msg
 }
 
 proc log-error { args } {
-    log {*}$args
-    log $::errorInfo
+    log {*}$args $::errorInfo
 }

@@ -22,18 +22,15 @@ wapp-route GET /query2/lookback/window/frequency {
     if { $window eq "" } { set window 1m }
     if { $frequency eq "" } { set frequency 1m }
 
-    timer query start
-
     try {
         set data [rolling_gpm db waterplant time_recorded flow $lookback $window $frequency]
         set data [map row $data {
             lassign $row time flow x y
             list $time [flow scaled $flow]
         }]
-        print [lindex $data 1]
         wapp [json::encode [list { array array number } $data]]
     } on error msg {
-        log-error $msg
+        log-error query2 :
     }
 }
 
