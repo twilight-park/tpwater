@@ -2,6 +2,7 @@
 package require jbr::unix
 package require jbr::with
 package require jbr::dict
+package require jbr::json
 package require jbr::seconds
 
 source $script_dir/../pkg/wapp/wapp.tcl
@@ -10,9 +11,6 @@ source $script_dir/../pkg/wapp/wapp-static.tcl
 
 source $script_dir/../share/lib/html-lib.tcl
 source $script_dir/../share/lib/page-lib.tcl
-
-source $script_dir/../pkg/json/json.tcl
-
 
 wapp-route GET /query2/lookback/window/frequency {
     wapp-cache-control no-cache
@@ -73,7 +71,7 @@ wapp-route GET /query/table/start/end {
         }]
         with stmt = [db prepare $sql] {
             with result = [$stmt execute] {
-                wapp [json::encode [list { array array number } [list $start {*}[$result allrows -as lists] $end]]]
+                wapp [json::encode [list { array array number } [list [list $start null null] {*}[$result allrows -as lists] [list $end null null]]]]
             }
         }
         log [wapp-param REMOTE_ADDR] Query $table From $start To $end in [timer query get] seconds
