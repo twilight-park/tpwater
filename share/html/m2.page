@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="icon" href="/ui/favicon.ico" type="image/x-icon">
+  [< css]
+
+  <link rel="stylesheet" href="/ui/uPlot.min.css">
+  <script src="ui/uPlot.iife.min.js"></script> 
+
+  <script type="module"> 
+
+      var dataLast;
+      const dataStale = 120*1000;
+      const spinRate = 250;
+      var spinState = 0;
+
+      var page = null;
+
+      var flowChart = null;
+      var tankChart = null;
+
+      function reloadPage() {
+        location.reload(true);
+      }
+      
+      [< press]
+      [< ticker]
+      [< buttonState]
+
+      function selectData(rawData, i) {
+        const data = rawData.map(d => ({ x: new Date(d[0]*1000), y: d[i] }));
+        const last = data[data.length-2]?.y;
+
+        return { data: data, last: last }
+      }
+
+      function updateCharts() {
+        const lookback = document.getElementById("lookback");
+
+        const url = `/query/waterplant/-${lookback.value}`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+
+                dataLast = new Date(data[data.length-2][0] * 1000);
+
+                document.getElementById("dataLast").textContent = dataLast.toLocaleString();
+                
+                const D = [[], []]
+                D[0] = data.map(d => (d[0]));
+                D[1] = data.map(d => (d[1]));
+                D[2] = data.map(d => (d[2]));
+
+                if ( flowChart === null ) {
+                    flowChart = new uPlot({
+                        width: window.innerWidth * .95,
+                        height: window.innerHeight * .50,
+                        cursor: {
+                            show: false
+                        },
+                        legend: {
+                            show: false
+                        },
+                        series: [
+                            {}, 
+                            {
+                                label: "Flow",
+                                stroke: "blue",
+                                width: 2,
+                                scale: "gpm"
+                            },
+                            {
+                                label: "Tank",
+                                stroke: "green",
+                                width: 2,
+                                scale: "%"
+                            }
+                        ],
+                        axes: [
+                            {
+                                font: "16px Arial"
+                            },
+                            {
+                                scale: "gpm",
+                                font: "16px Arial",
+                                grid: {show: false}
+                            },
+                            {
+                                scale: "%",
+                                font: "16px Arial",
+                                values: (u, vals, space) => vals.map(v => +v.toFixed(0) + "%"),
+                                grid: {show: false},
+                                side: 1
+                            }
+                        ],
+                        scales: {
+                            "gpm": {
+                                auto: false,
+                                range: [0, 40],
+                            },
+                            "%": {
+                                auto: false,
+                                range: [0, 105],
+                            }
+                        }
+                    }, D, document.getElementById("flowChart"));
+                } else {
+                    flowChart.setData(D)
+                }
+            }
+        );
+      }
+
+
+      function updatePage() {
+        const url = "/values?page=m2";
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if ( page != null && page != data.page ) {
+                    reloadPage()
+                }
+                page = data.page;
+
+                buttonState("auto", data.auto, data.auto, "Auto")
+                buttonState("golf", data.golf, data.giac, "Golf Course")
+                buttonState("thrd", data.thrd, data.tiac, "Third Level")
+
+                document.getElementById("flowLast").textContent = (typeof data.flow === 'number' ? data.flow.toFixed(0) : "???") + " GPM";
+                document.getElementById("tankLast").textContent = (typeof data.tank === 'number' ? data.tank.toFixed(0) : "???") + "%";
+            }
+        );
+    }
+
+    function loadPage() {
+        updatePage();
+        updateCharts();
+    }
+
+    function logout() {
+        window.location="/logout";
+    }
+
+    setInterval(() => { ticker(); }, spinRate);
+    setInterval(() => { updatePage(); }, 5000);
+    setInterval(() => { updateCharts(); }, 20000);
+    setInterval(() => { reloadPage(); }, 1000*60*60);
+
+    window.loadPage = loadPage;
+    window.updateCharts = updateCharts;
+    window.updatePage = updatePage;
+    window.logout = logout;
+    window.press = press;
+  </script>
+</head>
+
+<body onLoad="loadPage()">
+    <div class="tophdr">
+        <h4><b>Twilight Park Water Monitor</b>
+            &nbsp:&nbsp
+            <text id=dataLast>Timer</text>
+            &nbsp:&nbsp
+            <text id=spinner>spinner</text>
+        </h4>
+        <span class=rite>
+            Look Back 
+            <select name="lookback" id="lookback" onChange="updateCharts();">
+                  <option value="1h">Hour</option>
+                  <option value="1d" selected>Day</option>
+                  <option value="1w">Week</option>
+                  <option value="1t">Month</option>
+            </select>
+            &nbsp
+            <button onClick='logout()'>Logout</button>
+        </span>
+    </div>
+    <br>
+    <br>
+    <div style="clear:both"></div>
+
+    <div>
+        <div class="box"> 
+            <h1 class="chartTitle">Flow&nbsp;<span id=flowLast>Flow</span></h1>
+            <br>
+            <h1 class="chartTitle">Tank&nbsp;<span id=tankLast>Tank</span></h1>
+        </div>
+        <div id="flowChart" class="chart"></div>
+    </div>
+
+    <div><br></div>
+    <div class=buttons>
+        <div class="buthdr"> <h1><button id="auto" onClick="press('auto')">Auto</button></h1></div>
+        <div class="buthdr"> <h1><button id="golf" onClick="press('golf')">Golf Course</button></h1></div>
+        <div class="buthdr"> <h1><button id="thrd" onClick="press('thrd')">Third Level</button></h1></div>
+    </div>
+</body>
+</html>
