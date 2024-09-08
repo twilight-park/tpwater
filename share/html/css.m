@@ -1,49 +1,90 @@
   <style type="text/css">
-    .chart#flowChart {
-        height: 50%;
-        width: 100%;
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
     }
-    .chartTitle {
-        margin: 5px;
+    .chart#flowChart {
+       height: 50%;
+       width: 100%;
     }
     .ct-series-a .ct-line {
         stroke: blue;
         stroke-width: 2;
     }
+
     .tophdr {
-        display: inline;
-        position: fixed;
-        width: 95%
+      display: inline;
+      position: fixed;
+      width: 95%
     }
     .tophdr h4 {
-        display: inline;
+      display: inline;
     }
     .rite {
-        display: inline;
-        float: right
+      display: inline;
+      float: right
     }
 
     .box {
-        display: inline;
-        position: fixed;
-        padding-top: 5vh;
-        z-index: 1;
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      padding-top: 5vh;
+      z-index: 1;
     }
     .box h1 {
-        display: inline;
-        font-weight: bold;
-        font-size: 40px;
-        width: 95%;
-        margin-left: 5vw;
-        background-color: rgba(255, 255, 255, .75);
+      font-weight: bold;
+      font-size: 38px;
+      margin: 0;
+      margin-left: 60px;
+      background-color: rgba(255, 255, 255, .75);
+      padding: 0;
+    }
+
+    .buthdr h1 {
+      width: 100%;
+      margin: 0;
+    }
+
+    div.buttons {
+      position: relative;
+      display: flex;
+      min-height: 25vh;
+      width: 100%;
+      white-space: nowrap;
+      align-items: center;
     }
 
     .buthdr {
-        display: inline;
+      width: 100%;
+      padding: 4px;
+      display: inline;
     }
     .buthdr button {
-        display: inline;
-        font-weight: bold;
-        font-size: 125%;
+      display: inline;
+      font-weight: bold;
+      font-size: 125%;
+    }
+
+    .pbutton {
+      width: 100%;
+    }
+    .button {
+      height: 100%;
+      padding: 1px;
+      margin: 1px;
+    }
+
+    @media (max-width: 768px) {
+        .box {
+            padding-top: 5vh;
+        }
+        .box h1 {
+            font-size: 28px;
+        }
+        .buttons {
+            flex-direction: column;
+        }
     }
   </style>
