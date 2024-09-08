@@ -1,8 +1,9 @@
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/ui/favicon.ico" type="image/x-icon">
   <style type="text/css">
-      body { font-size: 32px; }
+      body { font-size: 24px; }
 
     .hdr { margin-bottom: 20px; }
 
@@ -15,8 +16,8 @@
     .form-group input[type="password"] { width: 20ch; padding: 10px; font-size: 1em; }
     .form-group input[type="submit"] { margin-left: 10px; padding: 10px 20px; font-size: 1em; }
 
-    @media screen and (max-width: 650px) {
-      body { font-size: 4vw; }
+    @media screen and (max-width: 768px) {
+      body { font-size: 20px; }
 
       .form-group { flex-direction: column; align-items: stretch; }
       .form-group label { width: auto; text-align: left; margin-bottom: 5px; font-size: 1.2em; }
