@@ -28,6 +28,7 @@
         position: fixed;
         width: 95%;
         padding-top: 5vh;
+        z-index: 1;
     }
     .box h1 {
         display: inline;
@@ -39,13 +40,6 @@
 
     .buthdr {
         display: inline;
-    }
-    div.buttons {
-        display: flex;
-        justify-content: space-around;
-        position: fixed;
-        bottom: 15%;
-        width: 100%;
     }
     .buthdr button {
         display: inline;

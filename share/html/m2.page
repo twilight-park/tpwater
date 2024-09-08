@@ -1,8 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/ui/favicon.ico" type="image/x-icon">
   [< css]
+  [< truncateText]
+
+  <style type="text/css">
+  @media screen and (max-width: 768px) {
+    .box {
+        padding-top: 5vh;
+    }
+    .box h1 {
+        font-size: 25px;
+        padding-left: 10vw;
+    }
+    .buttons {
+        flex-direction: column;
+    }
+  }
+  div.buttons {
+    position: relative;
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+  }
+
+  .buthdr {
+    width: 100%;
+    padding: 4px;
+  }
+  .buthdr h1 {
+        width: 100%;
+        margin: 0;
+  }
+
+  .pbutton {
+    width: 100%;
+  }
+  .button {
+    height: 100%;
+    padding: 1px;
+    margin: 1px;
+  }
+  </style>
 
   <link rel="stylesheet" href="/ui/uPlot.min.css">
   <script src="ui/uPlot.iife.min.js"></script> 
@@ -153,6 +194,8 @@
     window.updatePage = updatePage;
     window.logout = logout;
     window.press = press;
+
+    document.querySelectorAll('button').forEach(button => truncateText(button, 6));
   </script>
 </head>
 
@@ -180,7 +223,7 @@
     <br>
     <div style="clear:both"></div>
 
-    <div>
+    <div style="height: vh50%;">
         <div class="box"> 
             <h1 class="chartTitle">Flow&nbsp;<span id=flowLast>Flow</span></h1>
             <br>
@@ -189,11 +232,12 @@
         <div id="flowChart" class="chart"></div>
     </div>
 
+    <div style="clear:both"></div>
     <div><br></div>
     <div class=buttons>
-        <div class="buthdr"> <h1><button id="auto" onClick="press('auto')">Auto</button></h1></div>
-        <div class="buthdr"> <h1><button id="golf" onClick="press('golf')">Golf Course</button></h1></div>
-        <div class="buthdr"> <h1><button id="thrd" onClick="press('thrd')">Third Level</button></h1></div>
+        <div class="buthdr"> <h1><button class="pbutton" id="auto" onClick="press('auto')">Auto</button></h1></div>
+        <div class="buthdr"> <h1><button class="pbutton" id="golf" onClick="press('golf')">Golf Course</button></h1></div>
+        <div class="buthdr"> <h1><button class="pbutton" id="thrd" onClick="press('thrd')">Third Level</button></h1></div>
     </div>
 </body>
 </html>
