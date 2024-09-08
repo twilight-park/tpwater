@@ -16,7 +16,6 @@
                 let truncated = startText + '...' + endText;
 
                 while (getTextWidth(truncated, getComputedStyle(button).font) > maxWidth && startText.length > 0) {
-                    console.log(fullText, startText, endText, maxWidth, getTextWidth(truncated, getComputedStyle(button).font))
                     startText = startText.slice(0, -1);
                     truncated = startText + '...' + endText;
                 }
