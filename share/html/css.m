@@ -26,7 +26,6 @@
     .box {
         display: inline;
         position: fixed;
-        width: 95%;
         padding-top: 5vh;
         z-index: 1;
     }
@@ -35,7 +34,8 @@
         font-weight: bold;
         font-size: 40px;
         width: 95%;
-        padding-left: 5vw;
+        margin-left: 5vw;
+        background-color: rgba(255, 255, 255, .75);
     }
 
     .buthdr {
