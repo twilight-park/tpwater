@@ -33,7 +33,7 @@ cell_interface() {
 }
 
 case $CMD in 
-    auth|config|copy|overlay|remote|setup|gitkeys|keys|reboot|restore|update)
+    auth|config|copy|overlay|remote|setup|gitkeys|keys|reboot|restore|update|kiosk)
         if [ "$1" != "" ] ; then
             PI=$1; shift
             if [ "$PI" = "" ] ; then
@@ -312,6 +312,22 @@ case $CMD in
         LATEST=$(ssh data ls -tr backups/raspberrypi | tail -1)
         ssh data tar cf - -C backups/$FROM/$LATEST . | ssh $PI tar xvf -
         ;;
+
+    kiosk)
+        $0 overlay $PI down 
+        $0 reboot $PI
+        sleep 60
+
+        ssh $PI mkdir -p .config/lxsession/LXDE-pi
+        scp kiosk/autostart $PI:.config/lxsession/LXDE-pi/autostart
+        ssh $PI sudo apt update
+        ssh $PI sudo apt upgrade -y
+        ssh $PI sudo apt install mosh -y
+        ssh $PI sudo apt install unclutter -y
+        $0 overlay $PI up 
+        $0 reboot $PI
+        ;;
+
 
     *)
         echo Huh? $0 "$@" 1>&2 
