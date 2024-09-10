@@ -12,6 +12,36 @@ source $script_dir/../pkg/wapp/wapp-static.tcl
 source $script_dir/../share/lib/html-lib.tcl
 source $script_dir/../share/lib/page-lib.tcl
 
+proc host-alias { host } {
+    foreach { pattern alias } $::known_hosts {
+        if { [string starts-with $host $pattern] } {
+            return $alias
+        }
+    }
+    return {}
+}
+
+wapp-route GET /clients {
+    wapp-cache-control no-cache
+    wapp-mimetype application/json
+
+    set schema [json::schema [json::decode {
+        [{"host": "192.168.1.1", "timestamp": 123, "alias": "router"}]}
+    ]]
+
+    set table [list]
+    try {
+        foreach { host values } $::queries {
+            lassign $values timestamp alias
+            lappend table [list host $host timestamp $timestamp alias $alias]
+        }
+    } on error msg {
+        log-error query2 : $msg
+    }
+
+    wapp [json::encode [json::unite $schema $table]]
+}
+
 wapp-route GET /query2/lookback/window/frequency {
     wapp-cache-control no-cache
     wapp-mimetype application/json
@@ -28,7 +58,7 @@ wapp-route GET /query2/lookback/window/frequency {
         }]
         wapp [json::encode [list { array array number } $data]]
     } on error msg {
-        log-error query2 :
+        log-error query2 : $msg
     }
 }
 
@@ -74,7 +104,10 @@ wapp-route GET /query/table/start/end {
                 wapp [json::encode [list { array array number } [list [list $start null null] {*}[$result allrows -as lists] [list $end null null]]]]
             }
         }
-        log [wapp-param REMOTE_ADDR] Query $table From $start To $end in [timer query get] seconds
+        set remote [wapp-param REMOTE_ADDR]
+        dict set ::queries $remote [list [clock seconds] [host-alias $remote]]
+
+        log $remote Query $table From $start To $end in [timer query get] seconds
     } on error msg {
         log-error $msg
     }

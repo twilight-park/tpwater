@@ -31,24 +31,27 @@
       [< buttonState]
 
       function updateCharts() {
-        const lookback = document.getElementById("lookback");
 
-        const url = `/query/waterplant/-${lookback.value}`;
+        const lookback = "1d"; // document.getElementById("lookback").value;
+
+        const url = `/query/waterplant/-${lookback}`;
 
         fetch(url)
             .then(response => response.json())
             .then(data => {
 
-                dataLast = new Date(data[data.length-2][0] * 1000);
+          console.log("update charts - ", Math.floor(Date.now() / 1000));
 
-                document.getElementById("dataLast").textContent = dataLast.toLocaleString();
-                
                 const D = [[], []]
                 D[0] = data.map(d => (d[0]));
                 D[1] = data.map(d => (d[1]));
                 D[2] = data.map(d => (d[2]));
 
+                dataLast = new Date(data[data.length-2][0] * 1000);
+                document.getElementById("dataLast").textContent = dataLast.toLocaleString();
+                
                 if ( flowChart === null ) {
+
                     flowChart = new uPlot({
                         width: window.innerWidth * .95,
                         height: window.innerHeight * .50,
@@ -111,7 +114,7 @@
 
 
       function updatePage() {
-        const url = "/values?page=monitor";
+        const url = "/values?page=m2";
 
         fetch(url)
             .then(response => response.json())
@@ -142,8 +145,8 @@
 
     setInterval(() => { ticker(); }, spinRate);
     setInterval(() => { updatePage(); }, 5000);
-    setInterval(() => { updateCharts(); }, 20000);
-    setInterval(() => { reloadPage(); }, 1000*60*60);
+    setInterval(() => { updateCharts(); }, 60000);
+    setInterval(() => { reloadPage(); }, 1000*60*60*24);
 
     window.loadPage = loadPage;
     window.updateCharts = updateCharts;
@@ -179,7 +182,7 @@
     <br>
     <div style="clear:both"></div>
 
-    <div>
+    <div style="height: vh50%;">
         <div class="box"> 
             <h1>Flow&nbsp;<span id=flowLast>Flow</span></h1>
             <h1>Tank&nbsp;<span id=tankLast>Tank</span></h1>

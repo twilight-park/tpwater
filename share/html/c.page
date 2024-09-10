@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sortable Table Example</title>
+    <script src="/ui/sorttable.js"></script>
+    <script src="/ui/relativeTime.js"></script>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <table id="myTable"></table>
+
+    <script>
+        const url = `/clients`;
+
+        const config = [
+            { name: 'Alias', key: 'alias' },
+            { name: 'Host', key: 'host' },
+            { name: 'Last', key: 'timestamp', 
+                'format': (value) => formatRelativeTime(value) },
+            { name: 'Date', key: 'timestamp', 
+                'format': (value) => `${new Date(value * 1000).toString().slice(0, 25)}` },
+            { name: 'Timestamp', key: 'timestamp', 'format': (value) => `${value}` }
+        ];
+
+        const table = new SortableTable('myTable', config);
+
+        function updateData() {
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if ( table != null ) {
+                        table.setData(data);
+                    }
+                }
+            );
+        }
+
+        updateData();
+
+        setInterval(updateData, 60000);
+    </script>
+</body>
+</html>

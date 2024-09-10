@@ -113,6 +113,8 @@ msg_srvproc WATER radio { time_measured args } {
     set apikey [msg_getkey WATER $sock]
     set config [dict get $::apikeyMap $apikey]
 
+    dict set ::ping $config [clock seconds]
+
     db:record radio [clock seconds] station $config {*}$args
 }
 
@@ -123,6 +125,8 @@ msg_srvproc WATER rec { seconds args } {
         set apikey [msg_getkey WATER $sock]
         set config [dict get $::apikeyMap $apikey]
         set names  [dict get [set ::$config] names]
+
+        dict set ::queries [msg_peer WATER $sock] [list [clock seconds] $config]
 
         set now [clock seconds]
 
@@ -184,6 +188,5 @@ msg_apikey WATER [dict keys $::apikeyMap]
 foreach config $configs {
     every 1000 "check $config"
 }
-
 
 vwait forever
