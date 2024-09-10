@@ -4,9 +4,9 @@
       margin: 0;
       padding: 0;
     }
-    .chart#flowChart {
-       height: 50%;
-       width: 100%;
+    #flowChart {
+       min-height: 50vh;
+       width: 100vw;
     }
     .ct-series-a .ct-line {
         stroke: blue;
