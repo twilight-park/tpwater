@@ -16,14 +16,15 @@
     .tophdr {
       display: inline;
       position: fixed;
-      width: 95%
+      width: 98%;
     }
     .tophdr h4 {
       display: inline;
     }
     .rite {
-      display: inline;
-      float: right
+      float: right;
+      display: inline-flex;
+      align-items: center;
     }
 
     .box {

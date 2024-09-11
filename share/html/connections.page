@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sortable Table Example</title>
+    <script src="/ui/sorttable.js"></script>
+    <script src="/ui/relativeTime.js"></script>
+    <script src="/ui/hamburger.js"></script> 
+    [< hamburger-css]
+    <style>
+        .rite {
+          float: right;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <label>
+            <input type="checkbox" id="deDuplCheckbox" checked> Enable De-duplication
+        </label>
+        <select id="deDuplColumn">
+            <option value="alias">Alias</option>
+            <option value="ip">IP</option>
+            <option value="datacenter">Datacenter</option>
+            <option value="last_seen">Last Seen</option>
+        </select>
+        <span class=rite>
+            [< hamburger]
+        </span>
+    </div>
+    <br>
+    <table id="table"></table>
+
+    <script>
+        const url = `/clients`;
+        let table = null;
+
+        const config = [
+            { name: 'Alias', key: 'alias' },
+            { name: 'Host', key: 'host' },
+            { name: 'Last', key: 'timestamp', 
+                'format': (value) => formatRelativeTime(value) },
+            { name: 'Date', key: 'timestamp', 
+                'format': (value) => `${new Date(value * 1000).toString().slice(0, 25)}` },
+            { name: 'Timestamp', key: 'timestamp', 'format': (value) => `${value}` }
+        ];
+
+        function applyDeDuplication() {
+            let filteredData = [...tableData];
+
+            const deDuplCheckbox = document.getElementById('deDuplCheckbox');
+            const deDuplColumn = document.getElementById('deDuplColumn');
+
+            if (deDuplCheckbox.checked) {
+                const columnKey = deDuplColumn.value;
+                filteredData = deDuplicateData(filteredData, columnKey);
+            }
+
+            table.setData(filteredData);
+        }
+        function deDuplicateData(data, columnKey) {
+            const seen = new Set();
+            return data.filter(item => {
+                const value = (typeof columnKey === 'function') ?  columnKey(item) : item[columnKey];
+                if (seen.has(value)) {
+                    return false;
+                }
+                seen.add(value);
+                return true;
+            });
+        }
+
+        function updateData() {
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    tableData = data;
+                    table.sortData(tableData, ['timestamp'], {'timestamp': -1});
+                    applyDeDuplication();
+                }
+            );
+        }
+        function handleOnLoad() {
+            [< hamburger-config]
+
+            table = new SortableTable('table', config);
+            table.setInitialSort([{ key: 'timestamp', direction: 'desc' }]);
+
+            document.getElementById('deDuplCheckbox').addEventListener('change', applyDeDuplication);
+            document.getElementById('deDuplColumn').addEventListener('change', applyDeDuplication);
+
+            updateData();
+            setInterval(updateData, 60000);
+        }
+
+        window.onload = handleOnLoad;
+    </script>
+</body>
+</html>

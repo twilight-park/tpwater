@@ -5,10 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="/ui/favicon.ico" type="image/x-icon">
   [< css]
+  [< hamburger-css]
   [< truncateText]
 
   <link rel="stylesheet" href="/ui/uPlot.min.css">
-  <script src="ui/uPlot.iife.min.js"></script> 
+  <script src="/ui/uPlot.iife.min.js"></script> 
+  <script src="/ui/hamburger.js"></script> 
 
   <script type="module"> 
 
@@ -134,6 +136,8 @@
     function loadPage() {
         updatePage();
         updateCharts();
+
+        [< hamburger-config]
     }
 
     function logout() {
@@ -164,7 +168,7 @@
             <text id=spinner>spinner</text>
         </h4>
         <span class=rite>
-            Look Back 
+            Look Back&nbsp; 
             <select name="lookback" id="lookback" onChange="updateCharts();">
                   <option value="1h">Hour</option>
                   <option value="1d" selected>Day</option>
@@ -172,7 +176,7 @@
                   <option value="1t">Month</option>
             </select>
             &nbsp
-            <button onClick='logout()'>Logout</button>
+            [< hamburger]
         </span>
     </div>
     <br>
