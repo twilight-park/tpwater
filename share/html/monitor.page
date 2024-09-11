@@ -65,7 +65,7 @@
 
                 if ( flowChart === null ) {
                     flowChart = new uPlot({
-                        width: window.innerWidth * .95,
+                        width: window.innerWidth * .97,
                         height: window.innerHeight * .50,
                         cursor: {
                             show: false

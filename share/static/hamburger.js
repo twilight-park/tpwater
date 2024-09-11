@@ -20,25 +20,39 @@ function hamburger(iconId, menuItems) {
     }
 
 
-    function toggleMenu() {
-        icon.classList.toggle('active');
-        if (icon.classList.contains('active')) {
-            if (!menu) {
-                createMenu();
+           function toggleMenu() {
+                icon.classList.toggle('active');
+                if (icon.classList.contains('active')) {
+                    if (!menu) {
+                        createMenu();
+                    }
+                    const iconRect = icon.getBoundingClientRect();
+                    const iconCenterX = iconRect.left + iconRect.width / 2;
+                    const iconBottom = iconRect.bottom;
+                    
+                    menu.style.display = 'block';
+                    const menuWidth = menu.offsetWidth;
+                    const viewportWidth = window.innerWidth;
+                    
+                    // Calculate the ideal left position (centered under the icon)
+                    let leftPosition = iconCenterX - menuWidth / 2;
+                    
+                    // Adjust if the menu would overflow the right edge
+                    if (leftPosition + menuWidth > viewportWidth) {
+                        leftPosition = viewportWidth - menuWidth - 10; // 10px padding from right edge
+                    }
+                    
+                    // Ensure the menu doesn't overflow the left edge
+                    leftPosition = Math.max(10, leftPosition); // 10px padding from left edge
+                    
+                    menu.style.left = `${leftPosition}px`;
+                    menu.style.top = `${iconBottom + window.scrollY + 10}px`;
+                } else {
+                    if (menu) {
+                        menu.style.display = 'none';
+                    }
+                }
             }
-            const iconRect = icon.getBoundingClientRect();
-            const iconCenterX = iconRect.left + iconRect.width / 2;
-            const iconBottom = iconRect.bottom;
-
-            menu.style.display = 'block';
-            const menuWidth = menu.offsetWidth;
-
-            menu.style.left = `${iconCenterX - menuWidth / 2}px`;
-            menu.style.top = `${iconBottom + window.scrollY + 10}px`;
-        } else {
-            menu.style.display = 'none';
-        }
-    }
 
     icon.addEventListener('click', toggleMenu);
 }

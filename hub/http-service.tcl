@@ -18,6 +18,10 @@ proc host-alias { device host } {
             return $alias
         }
     }
+    if { $device ne "" } {
+        return $device
+    }
+
     foreach { pattern alias } $::known_hosts {
         if { [string starts-with $host $pattern] } {
             return $alias
