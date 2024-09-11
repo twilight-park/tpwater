@@ -1,3 +1,11 @@
 
-Consolidate CSS
+Connections Table
+    Dynamic color backgroud for cells to reflect overdue connections?
+
+    Connection type
+    Signal Strength
+
+    OpenCellID
+    Add deviceId to the connections table
+        Use device to de-dup?
 
