@@ -32,10 +32,23 @@
       [< ticker]
       [< buttonState]
 
+      function generateUUID() {
+          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0,
+                v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+      }
+
+      if (!localStorage.getItem('deviceId')) {
+          localStorage.setItem('deviceId', generateUUID());
+      }
+      const deviceId = localStorage.getItem('deviceId');
+
       function updateCharts() {
         const lookback = document.getElementById("lookback");
 
-        const url = `/query/waterplant/-${lookback.value}`;
+        const url = `/query/waterplant/-${lookback.value}?device=${deviceId}`;
 
         fetch(url)
             .then(response => response.json())
@@ -113,7 +126,7 @@
 
 
       function updatePage() {
-        const url = "/values?page=monitor";
+        const url = `/values?page=monitor&device=${deviceId}`;
 
         fetch(url)
             .then(response => response.json())

@@ -12,13 +12,18 @@ source $script_dir/../pkg/wapp/wapp-static.tcl
 source $script_dir/../share/lib/html-lib.tcl
 source $script_dir/../share/lib/page-lib.tcl
 
-proc host-alias { host } {
+proc host-alias { device host } {
+    foreach { uuid alias } $::known_uuids {
+        if { [string eq $device $uuid] } {
+            return $alias
+        }
+    }
     foreach { pattern alias } $::known_hosts {
         if { [string starts-with $host $pattern] } {
             return $alias
         }
     }
-    return {}
+    return [expr $device != "" ? $device : $host]
 }
 
 wapp-route GET /clients {
@@ -26,14 +31,14 @@ wapp-route GET /clients {
     wapp-mimetype application/json
 
     set schema [json::schema [json::decode {
-        [{"host": "192.168.1.1", "timestamp": 123, "alias": "router"}]}
+        [{"host": "192.168.1.1", "device": "abc", "timestamp": 123, "alias": "router"}]}
     ]]
 
     set table [list]
     try {
-        foreach { host values } $::queries {
-            lassign $values timestamp alias
-            lappend table [list host $host timestamp $timestamp alias $alias]
+        foreach { key values } $::queries {
+            lassign $values timestamp remote device alias
+            lappend table [list host $remote timestamp $timestamp device $device alias $alias]
         }
     } on error msg {
         log-error query2 : $msg
@@ -105,7 +110,9 @@ wapp-route GET /query/table/start/end {
             }
         }
         set remote [wapp-param REMOTE_ADDR]
-        dict set ::queries $remote [list [clock seconds] [host-alias $remote]]
+        set device [wapp-param device]
+
+        dict set ::queries "$remote-$device" [list [clock seconds] $remote $device [host-alias $device $remote]]
 
         log $remote Query $table From $start To $end in [timer query get] seconds
     } on error msg {

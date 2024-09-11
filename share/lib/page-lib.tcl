@@ -19,6 +19,11 @@ wapp-route GET /values {
     html-page values application/json {
         set page [wapp-param page]
 
+        set remote [wapp-param REMOTE_ADDR]
+        set device [wapp-param device]
+
+        dict set ::queries "$remote-$device" [list [clock seconds] $remote $device [host-alias $device $remote]]
+
         wapp [template:subst { {
             [: name $!::names { "$!name": [!get? ::$!name], } ]
             "date": [!clock seconds],

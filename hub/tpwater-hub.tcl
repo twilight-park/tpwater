@@ -126,7 +126,8 @@ msg_srvproc WATER rec { seconds args } {
         set config [dict get $::apikeyMap $apikey]
         set names  [dict get [set ::$config] names]
 
-        dict set ::queries [msg_peer WATER $sock] [list [clock seconds] $config]
+        set remote [msg_peer WATER $sock]
+        dict set ::queries $config [list [clock seconds] $remote $config $config]
 
         set now [clock seconds]
 
