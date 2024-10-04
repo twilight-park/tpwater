@@ -144,7 +144,7 @@ case $CMD in
     update)
         $0 overlay $PI down 
         $0 reboot $PI
-        sleep 60
+        sleep 90
 
         $0 copy $PI
         $0 gitkeys $PI
@@ -161,7 +161,7 @@ case $CMD in
         $0 remote $PI clear-log
         $0 remote $PI crontab up
         $0 reboot $PI
-        sleep 60
+        sleep 90
         ;;
 
     overlay)
@@ -316,16 +316,17 @@ case $CMD in
     kiosk)
         $0 overlay $PI down 
         $0 reboot $PI
-        sleep 60
+        sleep 90
 
         ssh $PI mkdir -p .config/lxsession/LXDE-pi
         scp kiosk/autostart $PI:.config/lxsession/LXDE-pi/autostart
-        ssh $PI sudo apt update
-        ssh $PI sudo apt upgrade -y
-        ssh $PI sudo apt install mosh -y
-        ssh $PI sudo apt install unclutter -y
-        $0 overlay $PI up 
-        $0 reboot $PI
+        #ssh $PI sudo apt update
+        #ssh $PI sudo apt upgrade -y
+        #ssh $PI sudo apt install mosh -y
+        #ssh $PI sudo apt install unclutter -y
+        ssh $PI sudo apt install iotop -y
+        #$0 overlay $PI up 
+        #$0 reboot $PI
         ;;
 
 

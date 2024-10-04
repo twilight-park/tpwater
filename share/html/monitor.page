@@ -22,7 +22,6 @@
       var page = null;
 
       var flowChart = null;
-      var tankChart = null;
 
       function reloadPage() {
         location.reload(true);

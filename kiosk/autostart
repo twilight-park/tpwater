@@ -6,4 +6,6 @@
 @pcmanfm --desktop --profile LXDE-pi
 
 @unclutter -idle
-@chromium-browser --kiosk --noerrdialogs --disable-infobars  -disable-translate http://data.rkroll.com:7777/monitor
+
+@sleep 90
+@chromium-browser --kiosk --noerrdialogs --disable-infobars  -disable-translate http://data.rkroll.com:7777/m2
