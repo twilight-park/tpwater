@@ -8,6 +8,10 @@ source $TPWATER/pkg/wapp/wapp-static.tcl
 source $script_dir/../share/lib/html-lib.tcl
 source $script_dir/../share/lib/page-lib.tcl
 
+proc host-alias { device remote } {
+    return $remote
+}
+
 wapp-route GET /press {
     set b [wapp-param button]
     if { $b ni $::names } {
