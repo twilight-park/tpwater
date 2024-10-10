@@ -13,21 +13,21 @@ source $script_dir/../share/lib/html-lib.tcl
 source $script_dir/../share/lib/page-lib.tcl
 
 proc host-alias { device host } {
+    set alias ""
+
     foreach { uuid alias } $::known_uuids {
         if { [string eq $device $uuid] } {
             return $alias
         }
     }
-    if { $device ne "" } {
-        return $device
-    }
 
     foreach { pattern alias } $::known_hosts {
         if { [string starts-with $host $pattern] } {
-            return $alias
+            return "$device $alias"
         }
     }
-    return [expr $device != "" ? $device : $host]
+
+    return [expr $device != "" ? "$device" : $host]
 }
 
 wapp-route GET /clients {

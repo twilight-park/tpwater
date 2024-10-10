@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sortable Table Example</title>
+    <title>Connections Table</title>
     <script src="/ui/sorttable.js"></script>
     <script src="/ui/relativeTime.js"></script>
     <script src="/ui/hamburger.js"></script> 
