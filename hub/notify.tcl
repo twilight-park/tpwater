@@ -36,7 +36,11 @@ proc notify { type args } {
 
 proc try-rule { name action } {
     try {
-        uplevel $action
+        upvar #0 $name enabled
+
+        if { $enabled } {
+            uplevel $action
+        }
     } on error msg {
         log RULE Error: $name $msg
     }
