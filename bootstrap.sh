@@ -337,7 +337,7 @@ esac
 
 exit
 
-    @ CTRL=A \   to exit
+    # CTRL=A \   to exit
 	screen /dev/ttyUSB2 115200
     AT+CGDCONT?
 
@@ -350,6 +350,14 @@ RNDIS :
 
 	AT+CRESET
 
+Operator Network
+
+    AT+COPS=?
+    AT+COPS=1,2,"310410"    // Force AT&T
+    AT+COPS=1,2,"310260"    // Force T-Mobile
+
+    AT+COPS=0               // Return to autoselect.
+
 Serail Number 	AT+CGSN
 
 Status:
@@ -357,6 +365,17 @@ Status:
 		AT+COPS?
 		AT+CREG?
 		AT+CPSI?
+
+        +COPS: (3,"Verizon","Verizon","311480",7),(3,"313 100","313 100","313100",7),(3,"T-Mobile","T-Mobile","310260",7),(2,"AT&T","AT&T","310410",7),,(0,1,2,3,4,5),(0,1,2)
+
+        # Tower down the valley south of Palenville
+        #
+        Waterplant : +CPSI: LTE,Online,310-410,0x0D19,205921033,49,EUTRAN-BAND2,1025,4,4,-99,-1063,-766,14
+        Thirdlevel : +CPSI: LTE,Online,310-410,0x0D19,205921033,49,EUTRAN-BAND2,1025,4,4,-92,-950,-671,20
+
+        # Tower between Haines Falls Auto and North South Lake Road.
+        #
+        Golfcourse : +CPSI: LTE,Online,310-410,0x0D19,205921034,152,EUTRAN-BAND2,1025,4,4,-101,-1085,-797,15
 
 Time:
     AT+CTZU?
