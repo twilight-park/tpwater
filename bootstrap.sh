@@ -10,7 +10,7 @@
 if [ "$1" != "" ] ; then
     CMD=$1; shift
 else
-    echo "usage: bootstrap.sh <pi> <command>" 1>&2
+    echo "usage: bootstrap.sh <command> <card>" 1>&2
     exit 1
 fi
 
@@ -331,7 +331,7 @@ case $CMD in
 
 
     *)
-        echo Huh? $0 "$@" 1>&2 
+        echo Huh? $CMD "$@" 1>&2 
         ;;
 esac
 
