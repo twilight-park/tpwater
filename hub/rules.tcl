@@ -22,7 +22,7 @@ cron { every 2m at 5s } {
     try-rule LEAK {
         set rate 30
 
-        set data [rolling_gpm db waterplant time_recorded flow 0 10.5m 1s]
+        set data [rolling_gpm db waterplant time_recorded flow 0 10.5m 1s 28]
         set f10w [flow scaled [lindex $data 0 1]]
 
         log Flow10 f10w $f10w >= $rate?

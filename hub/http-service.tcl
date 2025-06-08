@@ -60,7 +60,7 @@ wapp-route GET /query2/lookback/window/frequency {
     if { $frequency eq "" } { set frequency 1m }
 
     try {
-        set data [rolling_gpm db waterplant time_recorded flow $lookback $window $frequency]
+        set data [rolling_gpm db waterplant time_recorded flow $lookback $window $frequency 28]
         set data [map row $data {
             lassign $row time flow x y
             list $time [flow scaled $flow]

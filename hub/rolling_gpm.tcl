@@ -1,8 +1,4 @@
-package require tdbc::sqlite3
-package require jbr::print
-package require jbr::seconds
-
-proc rolling_gpm {db_connection table_name time_column flow_column lookback window frequency} {
+proc rolling_gpm {db_connection table_name time_column flow_column lookback window frequency points} {
     # Convert time parameters to seconds
     set lookback [expr { int([seconds $lookback]) }]
     set window [expr { int([seconds $window]) }]
@@ -67,14 +63,15 @@ proc rolling_gpm {db_connection table_name time_column flow_column lookback wind
         }
 
         # Calculate GPM if we have at least two points in the window
-        if {($i > $window_start_index && $total_seconds >= $window) || $i == [llength $data] - 1} {
+        set npoints [expr { $i - $window_start_index }]
+        if { ($i > $window_start_index && $total_seconds >= $window && $npoints >= $points ) || $i == [llength $data] - 1} {
             set gpm [expr {$window_flow_sum / ($window_time_sum / 60.0)}]
 
             # Output result if it's time
             set output_seconds [expr { $current_time - $last_output_time }]
             if {$output_seconds >= $frequency || $i == [llength $data] - 1} {
-                lappend output [list $current_time $gpm $output_seconds $window_time_sum]
-                set last_output_time $current_time
+                lappend output [list $current_time $gpm $output_seconds $window_time_sum $npoints]
+                set last_output_time $current_time 
             }
         }
     }
@@ -83,15 +80,29 @@ proc rolling_gpm {db_connection table_name time_column flow_column lookback wind
 }
 
 proc main {argv} {
-    if {[llength $argv] != 7} {
-        puts "Usage: [info script] <db_file> <table_name> <time_column> <flow_column> <lookback_hours> <window_minutes> <frequency_minutes>"
+
+    set HOME $::env(HOME)
+    ::tcl::tm::path add $HOME/lib/tcl8/site-tcl
+
+
+    package require tdbc::sqlite3
+    package require jbr::print
+    package require jbr::seconds
+    package require jbr::unix
+
+    set config [cat ../share/config/waterplant.cfg]
+    set zero [dict get $config flow zero]
+    set scale [dict get $config flow scale]
+
+    if {[llength $argv] != 8} {
+        puts "Usage: [info script] <db_file> <table_name> <time_column> <flow_column> <lookback_hours> <window_minutes> <frequency_minutes> <points>"
         exit 1
     }
 
-    lassign $argv db_file table_name time_column flow_column lookback window frequency
+    lassign $argv db_file table_name time_column flow_column lookback window frequency points
 
     # Validate numeric inputs
-    foreach {param value} [list "lookback" $lookback "window" $window "frequency" $frequency] {
+    foreach {param value} [list lookback $lookback window $window frequency $frequency points $points] {
         if {![string is double [seconds $value]]} {
             puts "Error: $param must be a number"
             exit 1
@@ -106,7 +117,7 @@ proc main {argv} {
 
     # Call the calculate_rolling_gpm procedure
     if {[catch {
-        set results [rolling_gpm db $table_name $time_column $flow_column $lookback $window $frequency]
+        set results [rolling_gpm db $table_name $time_column $flow_column $lookback $window $frequency $points]
     } err]} {
         puts "Error calculating rolling GPM: $err"
         puts $::errorInfo
@@ -126,12 +137,13 @@ proc main {argv} {
     puts "lookback_hours\t$lookback"
     puts "window_minutes\t$window"
     puts "frequency_minutes\t$frequency"
+    puts "data_points\t$points"
     puts ""
-    puts "date\ttimestamp\tgpm\toutput\twindow"
-    puts "----------\t---------\t---\t-----\t-------"
+    puts "date\ttimestamp\tgpm\toutput\twindow\tpoints"
+    puts "----------\t---------\t---\t-----\t-------\t-----"
     foreach row $results {
-        lassign $row timestamp gpm output_seconds window_seconds
-        puts "[clock format $timestamp]\t$timestamp\t[format %.2f $gpm]\t$output_seconds\t$window_seconds"
+        lassign $row timestamp gpm output_seconds window_seconds points
+        puts "[clock format $timestamp]\t$timestamp\t[format %.2f [expr { ($gpm-$zero)*$scale }]]\t$output_seconds\t$window_seconds\t$points"
     }
 
     # Close database connection
