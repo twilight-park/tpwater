@@ -2,6 +2,26 @@
 
 A distributed monitoring system for water infrastructure including flow measurement, tank level monitoring, and remote pump control.
 
+## Table of Contents
+- [System Architecture](#system-architecture)
+- [Hardware Configuration](#hardware-configuration)
+- [Software Components](#software-components)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Operation](#operation)
+- [Alert System](#alert-system)
+- [Data Management](#data-management)
+- [Network Configuration](#network-configuration)
+- [Troubleshooting](#troubleshooting)
+- [Security](#security)
+- [Maintenance](#maintenance)
+- [Technical Deep Dive](#technical-deep-dive)
+  - [Software Architecture Details](#software-architecture-details)
+  - [Message System Architecture](#message-system-architecture)
+  - [Web Interface Architecture](#web-interface-architecture)
+  - [Advanced Features](#advanced-features)
+  - [Development Guidelines](#development-guidelines)
+
 ## System Architecture
 
 The system consists of two main components:
@@ -41,6 +61,11 @@ The system consists of two main components:
 #### Third Level Station
 - Pump control relay (GPIO pin 1)
 - Current monitoring via MCP342x
+
+#### Test Card
+- Analog input monitoring
+- GPIO output control
+- Used for system testing and development
 
 ## Software Components
 
@@ -96,6 +121,7 @@ sudo apt install tcl-dev tcllib tcl8.6-tdbc-sqlite3 i2c-tools
 ```bash
 git clone git@github.com:jbroll/tpwater.git
 cd tpwater
+git checkout rev2
 ```
 
 4. Generate an API key for the station:
@@ -104,6 +130,11 @@ cd tpwater
 ```
 
 5. Configure the station in `share/config/` with the appropriate `.cfg` file
+
+6. Set up automatic startup:
+```bash
+./tpwater.sh crontab
+```
 
 ## Configuration
 
@@ -138,6 +169,13 @@ The hub configuration (`hub/hub.cfg`) defines:
 - Known hosts and devices
 - Alert thresholds
 
+### Sensor Calibration Parameters
+- `zero`: ADC reading at zero flow/pressure
+- `scale`: Conversion factor to engineering units
+- `min`/`max`: Valid range limits
+- `precision`: Decimal places for display
+- `sample`: Averaging time in milliseconds
+
 ## Operation
 
 ### Starting the System
@@ -152,12 +190,15 @@ Other commands:
 - `./tpwater.sh restart` - Restart the service
 - `./tpwater.sh stat` - Check service status
 - `./tpwater.sh tail` - View live logs
+- `./tpwater.sh retail` - Restart and tail logs
 
 ### Automatic Startup
 
 The system uses crontab for automatic startup:
 ```bash
 */2 * * * * /home/john/tpwater/tpwater.sh start
+45  2 * * * /home/john/tpwater/tpwater.sh restart
+50  2 * * * find /home/john/tpwater/log -type f -mtime +7 -delete
 ```
 
 ### Web Interface
@@ -171,13 +212,23 @@ Available pages:
 - `/status` - Simple status display
 - `/connections` - View connected stations
 - `/login` - Authentication page
+- `/m2` - Mobile-optimized interface
+
+### Kiosk Mode
+
+For dedicated display terminals:
+```bash
+./bootstrap.sh kiosk <pi-hostname>
+```
+
+This configures a Raspberry Pi to automatically display the monitoring interface on boot.
 
 ## Alert System
 
 ### Leak Detection
 - Monitors 10-minute rolling average flow rate
 - Triggers SMS alert if flow exceeds threshold (default: 30 GPM)
-- Rate-limited to prevent alert spam
+- Rate-limited to prevent alert spam (6-hour minimum between alerts)
 
 ### Weekly Test Notifications
 - Sends test message every Monday at 10:05 AM
@@ -186,6 +237,12 @@ Available pages:
 ### SMS Configuration
 Uses Twilio for SMS notifications. Requires environment variables:
 - Phone numbers and API credentials stored in `~/.twillio`
+- Contact information configured in hub environment
+
+### Alert Types
+- **LEAK**: High flow rate detection
+- **NOTE**: Weekly system test
+- Additional alerts can be configured in `hub/rules.tcl`
 
 ## Data Management
 
@@ -194,6 +251,13 @@ Uses Twilio for SMS notifications. Requires environment variables:
 - `golfcourse` - Pump status and current
 - `thirdlevel` - Pump status and current
 - `radio` - Cellular connection quality
+- `config` - System configuration storage
+
+### Data Collection
+- Measurements taken every 20 seconds
+- Local averaging for noise reduction
+- Automatic time synchronization
+- Duplicate detection and handling
 
 ### Backup System
 Automated backups to remote server:
@@ -201,20 +265,56 @@ Automated backups to remote server:
 ./tpwater.sh backup
 ```
 
-Uses `pp-back` (Push/Pull Backup) system with incremental backups.
+Uses `pp-back` (Push/Pull Backup) system with:
+- Incremental backups using rsync
+- 30-day retention for daily backups
+- Permanent monthly backups (1st of each month)
+- Automatic cleanup of old backups
+
+### Data Queries
+Query historical data:
+```bash
+./query.tcl tpwater.db waterplant -1d now
+```
 
 ## Network Configuration
 
 ### Cellular Modem Setup
 - Supports Quectel modems (via /dev/ttyUSB2)
 - Automatic route configuration for dual connectivity
-- Firewall rules to restrict cellular data usage
+- Signal strength monitoring
+- Network operator selection
+
+### AT Commands for Modem Configuration
+```bash
+# Check signal strength
+AT+CSQ
+
+# Check network registration
+AT+CREG?
+
+# Force network operator
+AT+COPS=1,2,"310410"    # AT&T
+AT+COPS=1,2,"310260"    # T-Mobile
+```
 
 ### Firewall Rules
 Cellular interface restricted to:
 - DNS (port 53)
 - Data server (ports 8000, 8001)
 - All other traffic blocked
+
+Apply firewall rules:
+```bash
+./client/scripts/firewall up
+./client/scripts/firewall save
+```
+
+### Route Management
+The system automatically manages routes:
+- WiFi preferred for general traffic
+- Cellular used for critical data uploads
+- Automatic failover on connection loss
 
 ## Troubleshooting
 
@@ -223,22 +323,30 @@ Cellular interface restricted to:
 1. **No sensor readings**
    - Check I2C connections: `i2cdetect -y 1`
    - Verify sensor addresses in configuration
-   - Check power to sensors
+   - Check power to sensors (3.3V or 5V as required)
 
 2. **Communication failures**
    - Verify API key matches hub configuration
-   - Check network connectivity
-   - Review firewall settings
+   - Check network connectivity: `ping data.rkroll.com`
+   - Review firewall settings: `sudo iptables-save`
 
 3. **Pump control issues**
    - Verify GPIO pin assignments
-   - Check relay wiring
+   - Check relay wiring and power supply
    - Monitor GPIO state in logs
+   - Test manual control via web interface
+
+4. **Cellular connection problems**
+   - Check SIM card installation
+   - Verify APN settings: `AT+CGDCONT?`
+   - Monitor signal strength
+   - Check data plan status
 
 ### Log Files
 Logs are stored in `log/` directory:
 - `YYYYMMDD-tpwater-client.log` - Client station logs
 - `YYYYMMDD-tpwater-hub.log` - Hub server logs
+- Automatic cleanup after 7 days
 
 ### Diagnostic Commands
 ```bash
@@ -253,6 +361,10 @@ tclsh
 source client/devices/MCP342x.tcl
 set adc [::i2c::MCP342x::a2d new 1 0x68]
 $adc read 0
+
+# Check message system connection
+export MSGDEBUG=1
+./tpwater.sh restart
 ```
 
 ## Security
@@ -261,20 +373,406 @@ $adc read 0
 - Password-protected web interface
 - Restricted cellular data usage via iptables
 - No sensitive data stored on client devices
+- Access control lists for message server
+
+### Password Management
+Generate password hash:
+```bash
+echo -n "password" | md5sum
+```
+
+Add to password file:
+```
+<hash> control username
+```
 
 ## Maintenance
 
 ### Regular Tasks
 - Monitor log file sizes (auto-cleaned after 7 days)
 - Check cellular data usage
-- Verify sensor calibration
+- Verify sensor calibration quarterly
 - Test notification system weekly
+- Review and update firewall rules
 
 ### Sensor Calibration
-Adjust zero and scale values in configuration:
-- `zero`: ADC reading at zero flow/pressure
-- `scale`: Conversion factor to engineering units
-- `min`/`max`: Valid range limits
+1. Stop data collection: `./tpwater.sh stop`
+2. Record zero point (no flow/empty tank)
+3. Apply known reference (flow rate/tank level)
+4. Calculate new zero and scale values
+5. Update configuration file
+6. Restart service: `./tpwater.sh start`
+
+### System Updates
+```bash
+# Update software on client
+./bootstrap.sh update <pi-hostname>
+
+# Update software on hub
+cd tpwater
+git pull
+./tpwater.sh restart
+```
+
+### Performance Monitoring
+- Database size: `ls -lh tpwater.db`
+- Message latency: Check timestamps in logs
+- CPU usage: `top` or `htop`
+- Network bandwidth: `iftop`
+
+---
+
+## Technical Deep Dive
+
+The following sections provide detailed technical information for developers and advanced users.
+
+### Software Architecture Details
+
+#### Layered Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Web Interface Layer                    │
+│  (Wapp Framework, HTTP Services, Real-time Updates)     │
+├─────────────────────────────────────────────────────────┤
+│                 Application Logic Layer                  │
+│  (Rules Engine, Alert System, Data Processing)          │
+├─────────────────────────────────────────────────────────┤
+│                Message Communication Layer               │
+│          (jbr::msg Pub/Sub, API Key Auth)              │
+├─────────────────────────────────────────────────────────┤
+│                   Data Storage Layer                     │
+│        (SQLite, Time-series Data, Configuration)        │
+├─────────────────────────────────────────────────────────┤
+│                Hardware Abstraction Layer                │
+│    (I2C Devices, GPIO, Sensor Scaling, Calibration)    │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### Design Patterns
+
+**Object-Oriented Design**
+The system uses Tcl's TclOO for hardware abstraction:
+
+```tcl
+oo::class create channel {
+    variable config
+    method scaled { value } {
+        # Applies calibration and scaling
+    }
+    method config { c } {
+        set config $c
+    }
+}
+
+oo::class create dev-channel {
+    superclass channel
+    variable device channel sample value current
+    # Extends channel with device-specific behavior
+}
+```
+
+**Factory Pattern**
+Device creation uses a factory-like approach:
+```tcl
+switch $device {
+    ADS1115 -
+    MCP342x {
+        ::i2c::${device}::a2d create $dev $bus $address
+    }
+    gpio {
+        gpio::gpio::gpio create $dev
+    }
+}
+```
+
+**Observer Pattern**
+The pub/sub system implements observer pattern for state changes:
+```tcl
+msg_subscribe WATER $name:request {} "set-state $name"
+```
+
+### Message System Architecture
+
+#### jbr::msg Pub/Sub System
+
+The system uses a custom TCP-based pub/sub messaging system with these features:
+
+**Message Flow**
+```
+Client Station                    Hub Server
+     │                                │
+     ├──[API Key Auth]───────────────>│
+     │                                │
+     ├──[Subscribe to controls]──────>│
+     │                                │
+     ├──[Publish sensor data]────────>│
+     │                                │
+     │<─────[Control commands]────────┤
+     │                                │
+     │<─────[Clock sync]──────────────┤
+```
+
+**Key Features**
+- API Key Authentication: Each client has a unique key
+- Automatic Reconnection: Handles network interruptions gracefully
+- Keepalive Mechanism: Detects dead connections (5-60 second timeout)
+- Asynchronous Operations: Non-blocking message delivery
+- Topic-based Routing: Hierarchical topic structure
+
+**Message Types**
+
+1. Sensor Data Messages
+   ```tcl
+   msg_cmd WATER "rec [clock seconds] $values" 0 nowait
+   ```
+
+2. Control Messages
+   ```tcl
+   msg_set WATER $name:request $value {} async
+   ```
+
+3. State Synchronization
+   ```tcl
+   msg_publish WATER $name {} 
+   msg_subscribe WATER $name
+   ```
+
+4. System Messages
+   ```tcl
+   msg_publish WATER clk  # Clock synchronization
+   ```
+
+### Web Interface Architecture
+
+#### Frontend Technology Stack
+- No Framework Dependency: Vanilla JavaScript for reliability
+- Real-time Updates: Polling-based updates (5-second intervals)
+- Responsive Design: Mobile-friendly layouts
+- Chart Libraries: 
+  - uPlot for high-performance time-series (preferred)
+  - Chartist as fallback option
+
+#### Template System
+Uses jbr::template for server-side rendering:
+```tcl
+template-environment create T
+T macros $script_dir/../share/html
+```
+
+#### Dynamic Content Injection
+```html
+[< buttonState]  <!-- Macro inclusion -->
+[!flow get max]  <!-- Variable substitution -->
+[? [!is-localhost?] "" : { <!-- Conditional rendering -->
+    <button onClick='logout()'>Logout</button>
+}]
+```
+
+#### API Endpoints
+
+**Data Query API**
+```
+GET /query/{table}/{start}/{end}
+```
+Returns time-series data with automatic minute-level aggregation
+
+**Real-time Values API**
+```
+GET /values?page={page}
+```
+Returns current system state and sensor readings
+
+**Control API**
+```
+GET /press?button={control_name}
+```
+Triggers pump control state changes
+
+**Rolling Average API**
+```
+GET /query2/{lookback}/{window}/{frequency}
+```
+Returns processed flow data with rolling averages
+
+**Client Status API**
+```
+GET /clients
+```
+Returns connected station information in JSON format
+
+#### Client-Side Architecture
+
+**State Management**
+- Device UUID generation for tracking
+- LocalStorage for persistent device ID
+- Automatic page reload on configuration changes
+- MD5 checksums for change detection
+
+**Update Strategies**
+```javascript
+setInterval(() => { updatePage(); }, 5000);      // State updates
+setInterval(() => { updateCharts(); }, 20000);   // Chart updates
+setInterval(() => { reloadPage(); }, 86400000);  // Daily refresh
+```
+
+**Data Filtering**
+The system includes spike filtering for noisy sensor data:
+```javascript
+function filterNoisySpikes(data, threshold = 35, windowSize = 10, 
+                          minRemoveCount = 1, maxRemoveCount = 5, 
+                          fallbackValue = null)
+```
+
+### Data Flow and Processing
+
+#### Data Collection Pipeline
+
+1. **Sensor Reading**
+   ```
+   Physical Sensor → ADC → I2C Read → Scaling → Averaging → Message Bus
+   ```
+
+2. **Data Processing**
+   ```
+   Message Receipt → Validation → Database Storage → State Update → Rule Evaluation
+   ```
+
+3. **Client Data Flow**
+   ```tcl
+   proc readout {} {
+       foreach device $::devices {
+           _sample $device {*}[dict get [set ::$device] channels]
+       }
+       every [dict get $::record period] "record {*}$::inputs"
+   }
+   ```
+
+#### Time-Series Analysis
+
+**Rolling GPM Calculation**
+```tcl
+proc rolling_gpm {db_connection table_name time_column flow_column 
+                  lookback window frequency points} {
+    # Calculates rolling average flow rate
+    # Uses sliding window for anomaly detection
+    # Requires minimum data points for validity
+}
+```
+
+The algorithm:
+1. Retrieves historical data within lookback period
+2. Applies sliding window averaging
+3. Enforces minimum data point requirements
+4. Outputs at specified frequency intervals
+
+#### State Persistence
+
+**Hub State**
+```tcl
+proc save-state {} {
+    echo [subst {
+        set auto $::auto
+    }] > $::script_dir/state.cfg
+}
+```
+
+**Notification State**
+Persisted to prevent duplicate alerts:
+```tcl
+set ::noted "LEAK 1749392885594 NOTE 1748873100412"
+```
+
+### Advanced Features
+
+#### Coroutine-based Sampling
+Enables non-blocking sensor reading:
+```tcl
+package require coroutine::auto
+
+proc sample { device args } {
+    [coroutine::util create apply {{device args} {
+        yield [info coroutine]
+        _sample $device {*}$args
+    }} $device {*}$args]
+}
+```
+
+#### Dynamic Configuration Loading
+- Hot-reload of HTML templates via file watching
+- Configuration change detection using MD5 checksums
+- No service restart required for UI changes
+
+#### Multi-Architecture Support
+Automatic detection and loading of architecture-specific code:
+```tcl
+source $script_dir/devices/gpio-[run uname -m].tcl
+```
+Supports:
+- armv7l (32-bit Raspberry Pi)
+- aarch64 (64-bit Raspberry Pi)
+
+#### Time Synchronization
+- Hub broadcasts time via message bus
+- Automatic client clock adjustment
+- Reduces cellular data usage (no NTP)
+
+#### Rules Engine
+
+The system uses a flexible rules engine with cron-like scheduling:
+
+```tcl
+every 5000 {
+    try-rule auto {
+        if { $::tank <= 101.5 } {
+            set ::golf:request 1
+            set ::thrd:request 1
+        }
+        if { $::tank > 102.5 } {
+            set ::golf:request 0
+            set ::thrd:request 0
+        }
+    }
+}
+
+cron { every 2m at 5s } {
+    try-rule LEAK {
+        set rate 30
+        set data [rolling_gpm db waterplant time_recorded flow 0 10.5m 1s 28]
+        set f10w [flow scaled [lindex $data 0 1]]
+        if { $f10w >= $rate } {
+            notify LEAK rate $rate f10w $f10w
+        }
+    }
+}
+```
+
+### Development Guidelines
+
+#### Code Organization
+- Modular design with clear separation of concerns
+- Consistent naming conventions (snake_case for procs, camelCase for methods)
+- Comprehensive error handling with try/on error blocks
+- Logging at appropriate levels
+
+#### Testing Approach
+- Hardware abstraction allows unit testing
+- Test card configuration for development
+- Integration tests via message bus
+- Simulation mode for sensor data
+
+#### Extension Points
+1. **New Sensor Types**: Add drivers in `client/devices/`
+2. **Additional Rules**: Extend `hub/rules.tcl`
+3. **Custom Notifications**: Modify `hub/notify.tcl`
+4. **Alternative Storage**: Replace SQLite in `hub/db-setup.tcl`
+5. **New Web Pages**: Add templates in `share/html/`
+
+#### Performance Considerations
+- Database queries use minute-level aggregation
+- Client-side data filtering reduces noise
+- Message batching minimizes network usage
+- Efficient coroutine-based sampling
 
 ## License
 
