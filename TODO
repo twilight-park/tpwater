@@ -6,6 +6,4 @@ Connections Table
     Signal Strength
 
     OpenCellID
-    Add deviceId to the connections table
-        Use device to de-dup?
 
