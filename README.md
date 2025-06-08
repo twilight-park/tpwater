@@ -549,9 +549,7 @@ Client Station                    Hub Server
 - No Framework Dependency: Vanilla JavaScript for reliability
 - Real-time Updates: Polling-based updates (5-second intervals)
 - Responsive Design: Mobile-friendly layouts
-- Chart Libraries: 
-  - uPlot for high-performance time-series (preferred)
-  - Chartist as fallback option
+- uPlot for high-performance time-series
 
 #### Template System
 Uses jbr::template for server-side rendering:
