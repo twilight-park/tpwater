@@ -337,6 +337,7 @@ esac
 
 exit
 
+    @ CTRL=A \   to exit
 	screen /dev/ttyUSB2 115200
     AT+CGDCONT?
 
