@@ -591,16 +591,33 @@ def cmd_analyze(args):
             if not detail:
                 continue
             print(f"\n  {link_name}")
-            print(f"  {'Dist':>6}  {'Terrain':>8}  {'LOS':>8}  {'Above':>7}  {'NLCD':<20}  {'Canopy':>6}  Status")
-            print(f"  {'----':>6}  {'-------':>8}  {'---':>8}  {'-----':>7}  {'----':<20}  {'------':>6}  ------")
-            prev_key = None
-            for d in detail:
+            print(f"  {'Dist':>12}  {'Above (min→max)':>17}  {'NLCD':<20}  {'Canopy':>6}  Status")
+            print(f"  {'----':>12}  {'---------------':>17}  {'----':<20}  {'------':>6}  ------")
+
+            # Accumulate segments, tracking dist range and above min/max
+            seg_start_d = detail[0]["dist_m"]
+            seg_above_min = detail[0]["above_m"]
+            seg_above_max = detail[0]["above_m"]
+            prev_key = (detail[0]["status"], detail[0]["nlcd"])
+
+            def _flush_seg(end_d, above_min, above_max, key, sample):
+                nlcd_label = _NLCD_NAME.get(sample["nlcd"], str(sample["nlcd"]) if sample["nlcd"] else "?")
+                dist_str   = f"{seg_start_d:.0f}–{end_d:.0f}m"
+                above_str  = f"{above_min:+.1f}→{above_max:+.1f}m"
+                print(f"  {dist_str:>12}  {above_str:>17}  {nlcd_label:<20}  {sample['canopy_m']:>5.0f}m  {key[0]}")
+
+            for d in detail[1:]:
                 key = (d["status"], d["nlcd"])
                 if key != prev_key:
-                    nlcd_label = _NLCD_NAME.get(d["nlcd"], str(d["nlcd"]) if d["nlcd"] else "?")
-                    print(f"  {d['dist_m']:>5.0f}m  {d['terrain_m']:>7.1f}m  {d['los_m']:>7.1f}m  "
-                          f"{d['above_m']:>+6.1f}m  {nlcd_label:<20}  {d['canopy_m']:>5.0f}m  {d['status']}")
-                    prev_key = key
+                    _flush_seg(d["dist_m"], seg_above_min, seg_above_max, prev_key, d)
+                    seg_start_d   = d["dist_m"]
+                    seg_above_min = d["above_m"]
+                    seg_above_max = d["above_m"]
+                    prev_key      = key
+                else:
+                    seg_above_min = min(seg_above_min, d["above_m"])
+                    seg_above_max = max(seg_above_max, d["above_m"])
+            _flush_seg(detail[-1]["dist_m"], seg_above_min, seg_above_max, prev_key, detail[-1])
 
     # connected components via BFS
     seen       = set()
