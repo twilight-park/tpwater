@@ -27,6 +27,7 @@ import argparse
 import math
 import itertools
 import os
+import time
 import requests
 import xml.etree.ElementTree as ET
 
@@ -92,12 +93,17 @@ def parse_kml(path):
     for placemark in root.findall(".//kml:Placemark", ns):
 
         name_el = placemark.find("kml:name", ns)
-        coord_el = placemark.find(".//kml:coordinates", ns)
+        point_el = placemark.find(".//kml:Point", ns)
 
-        if name_el is None or coord_el is None:
+        if name_el is None or point_el is None:
             continue
 
-        coords = (coord_el.text or "").strip().split(",")
+        coord_el = point_el.find("kml:coordinates", ns)
+
+        if coord_el is None:
+            continue
+
+        coords = (coord_el.text or "").strip().split()[0].split(",")
 
         lon = float(coords[0])
         lat = float(coords[1])
@@ -139,6 +145,7 @@ def fetch_elevations(samples, batch_size=100):
             "https://api.opentopodata.org/v1/ned10m"
             f"?locations={coords}"
         )
+        time.sleep(1.2)
         r = requests.get(url)
         r.raise_for_status()
         elevations += [
@@ -156,12 +163,14 @@ def fetch_elevations(samples, batch_size=100):
 def analyze_link(a, b,
                  antenna_height=3.0,
                  freq_mhz=915.0,
-                 samples=200):
+                 sample_distance=5.0):
 
     total_distance = haversine(
         a["lat"], a["lon"],
         b["lat"], b["lon"]
     )
+
+    samples = max(2, int(total_distance / sample_distance))
 
     sample_points = []
 
@@ -206,6 +215,7 @@ def analyze_link(a, b,
 
     return {
         "distance_km": total_distance / 1000.0,
+        "samples": samples,
         "obstructed": obstructed,
         "min_clearance_m": min_clearance,
     }
@@ -238,9 +248,11 @@ def main():
     )
 
     parser.add_argument(
-        "--samples",
-        type=int,
-        default=100,
+        "--sample-distance",
+        type=float,
+        default=5.0,
+        metavar="METERS",
+        help="terrain sample interval in meters (default: 5)",
     )
 
     args = parser.parse_args()
@@ -258,7 +270,7 @@ def main():
             b,
             antenna_height=args.antenna_height,
             freq_mhz=args.freq_mhz,
-            samples=args.samples,
+            sample_distance=args.sample_distance,
         )
 
         status = (
@@ -271,6 +283,7 @@ def main():
             f"{a['name']:20s} -> "
             f"{b['name']:20s} | "
             f"{result['distance_km']:6.2f} km | "
+            f"{result['samples']:4d} pts | "
             f"{status:8s} | "
             f"MinClr {result['min_clearance_m']:7.2f} m"
         )
