@@ -288,6 +288,10 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
 # Subcommands
 # ------------------------------------------------------------
 
+def _active_points(points):
+    return [p for p in points if p["attrs"].get("skip", "").lower() not in ("true", "1", "yes")]
+
+
 def cmd_list(args):
     points = parse_kml(args.kml)
     print(f"\n{len(points)} placemarks in {args.kml}\n")
@@ -313,7 +317,7 @@ def _tab_table(headers: list[str], rows: list[list[str]]):
 
 def cmd_analyze(args):
     load_cache()
-    points = parse_kml(args.kml)
+    points = _active_points(parse_kml(args.kml))
 
     available_db = args.tx_power - args.rx_sensitivity
     foliage_db   = 2 * args.forest_db_per_m * args.forest_terminal_depth
