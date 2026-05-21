@@ -50,10 +50,13 @@ def knife_edge_loss(v):
 
 
 def foliage_loss(meters: float, db_per_m: float, max_db: float) -> float:
-    """ITU-R P.833 maximum excess attenuation model.
+    """ITU-R P.833-10 maximum excess attenuation model (Annex 1, Section 3).
 
-    Matches the linear model for short paths; saturates at max_db for long ones.
-    At 915 MHz through deciduous forest: db_per_m≈0.3, max_db≈20 dB.
+    A_v = A_m * (1 - exp(-d * gamma / A_m))
+
+    Matches linear for short paths; saturates at max_db for long ones.
+    P.833-10 tabulated at 949 MHz: gamma=0.17 dB/m, A_m=26.5 dB.
+    gamma=0.3 dB/m is conservative for low antennas within canopy.
     """
     if meters <= 0 or db_per_m <= 0 or max_db <= 0:
         return 0.0
@@ -316,7 +319,7 @@ def fetch_elevations(samples):
 # ------------------------------------------------------------
 
 def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_height=3.0,
-                 forest_db_per_m=0.3, foliage_max_db=20.0, use_nlcd=True, foliage_height=30.0):
+                 forest_db_per_m=0.3, foliage_max_db=26.5, use_nlcd=True, foliage_height=30.0):
     h_a        = float(a["attrs"].get("antenna_height", default_antenna_height))
     h_b        = float(b["attrs"].get("antenna_height", default_antenna_height))
     wavelength = 299792458.0 / (freq_mhz * 1e6)
@@ -552,8 +555,8 @@ def main():
     p_a.add_argument("--tx-power",             type=float, default=28.0,   metavar="DBM")
     p_a.add_argument("--rx-sensitivity",       type=float, default=-148.0, metavar="DBM")
     p_a.add_argument("--forest-db-per-m",      type=float, default=0.3,    metavar="DB/M")
-    p_a.add_argument("--foliage-max-db",       type=float, default=20.0,   metavar="DB",
-                     help="ITU-R P.833 saturation limit for vegetation loss (default: 20 dB at 915 MHz)")
+    p_a.add_argument("--foliage-max-db",       type=float, default=26.5,   metavar="DB",
+                     help="ITU-R P.833 saturation limit for vegetation loss (default: 26.5 dB, measured at 949 MHz)")
     p_a.add_argument("--forest-terminal-depth",type=float, default=30.0,   metavar="M")
     p_a.add_argument("--fade-margin",          type=float, default=10.0,   metavar="DB",
                      help="required reliability margin in dB for OK status (default: 10)")
