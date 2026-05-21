@@ -49,12 +49,10 @@ def knife_edge_loss(v):
         return -20 * math.log10(0.225 / v)
 
 
-def link_budget(distance_m, freq_mhz, tx_dbm, rx_sensitivity_dbm,
-                forest_db_per_m, forest_terminal_depth_m, diffraction_db):
-    fspl    = free_space_path_loss(distance_m, freq_mhz)
-    foliage = 2 * forest_db_per_m * forest_terminal_depth_m
-    margin  = (tx_dbm - rx_sensitivity_dbm) - fspl - foliage - diffraction_db
-    return {"fspl_db": fspl, "foliage_db": foliage, "margin_db": margin}
+def link_budget(distance_m, freq_mhz, tx_dbm, rx_sensitivity_dbm, foliage_db, diffraction_db):
+    fspl   = free_space_path_loss(distance_m, freq_mhz)
+    margin = (tx_dbm - rx_sensitivity_dbm) - fspl - foliage_db - diffraction_db
+    return {"fspl_db": fspl, "foliage_db": foliage_db, "margin_db": margin}
 
 
 # ------------------------------------------------------------
@@ -189,6 +187,74 @@ def save_cache():
         json.dump(_elev_cache, f)
 
 
+# ------------------------------------------------------------
+# NLCD land cover (foliage estimation)
+# ------------------------------------------------------------
+
+NLCD_CACHE_FILE = os.path.join(os.path.dirname(__file__), "nlcd_cache.json")
+NLCD_WMS_URL    = "https://www.mrlc.gov/geoserver/mrlc_display/NLCD_2021_Land_Cover_L48/wms"
+_nlcd_cache: dict = {}
+
+# depth multipliers by NLCD class (applied to default terminal depth)
+_NLCD_DEPTH: dict[int, float] = {
+    41: 1.0, 42: 1.0, 43: 1.0, 90: 1.0,   # forest / woody wetland — full depth
+    52: 0.5, 95: 0.3,                        # shrub / emergent wetland — partial
+}
+
+
+def load_nlcd_cache():
+    global _nlcd_cache
+    if os.path.exists(NLCD_CACHE_FILE):
+        with open(NLCD_CACHE_FILE) as f:
+            _nlcd_cache = json.load(f)
+
+
+def save_nlcd_cache():
+    with open(NLCD_CACHE_FILE, "w") as f:
+        json.dump(_nlcd_cache, f)
+
+
+def _fetch_nlcd_class(lat, lon) -> int | None:
+    d = 0.0002  # ~20 m buffer for 3×3 pixel query
+    params = {
+        "SERVICE": "WMS", "VERSION": "1.1.1", "REQUEST": "GetFeatureInfo",
+        "LAYERS": "NLCD_2021_Land_Cover_L48",
+        "QUERY_LAYERS": "NLCD_2021_Land_Cover_L48",
+        "SRS": "EPSG:4326",
+        "BBOX": f"{lon-d},{lat-d},{lon+d},{lat+d}",
+        "WIDTH": "3", "HEIGHT": "3", "X": "1", "Y": "1",
+        "INFO_FORMAT": "text/plain",
+    }
+    try:
+        r = requests.get(NLCD_WMS_URL, params=params, timeout=10)
+        r.raise_for_status()
+        for line in r.text.splitlines():
+            if ("PALETTE_INDEX" in line or "GRAY_INDEX" in line) and "=" in line:
+                return int(float(line.split("=")[-1].strip()))
+    except Exception:
+        pass
+    return None
+
+
+def nlcd_class_at(lat, lon) -> int | None:
+    key = f"{lat:.5f},{lon:.5f}"
+    if key in _nlcd_cache:
+        v = _nlcd_cache[key]
+        return int(v) if v is not None else None
+    cls = _fetch_nlcd_class(lat, lon)
+    _nlcd_cache[key] = cls
+    return cls
+
+
+def nlcd_terminal_depth(lat, lon, default_depth: float) -> tuple[float, str]:
+    """Return (terminal_depth_m, source_label) for a node position."""
+    cls = nlcd_class_at(lat, lon)
+    if cls is None:
+        return default_depth, "default"
+    mult = _NLCD_DEPTH.get(cls, 0.0)
+    return default_depth * mult, f"NLCD:{cls}"
+
+
 EPQS_URL = "https://epqs.nationalmap.gov/v1/json"
 EPQS_SENTINEL = -1000000  # returned for points outside coverage
 
@@ -232,10 +298,28 @@ def fetch_elevations(samples):
 # Path analysis
 # ------------------------------------------------------------
 
-def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_height=3.0):
+def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_height=3.0,
+                 forest_db_per_m=0.3, default_foliage_depth=30.0, use_nlcd=True):
     h_a        = float(a["attrs"].get("antenna_height", default_antenna_height))
     h_b        = float(b["attrs"].get("antenna_height", default_antenna_height))
     wavelength = 299792458.0 / (freq_mhz * 1e6)
+
+    # foliage terminal depth: KML foliage_depth > NLCD > constant default
+    if "foliage_depth" in a["attrs"]:
+        depth_a, src_a = float(a["attrs"]["foliage_depth"]), "KML"
+    elif use_nlcd:
+        depth_a, src_a = nlcd_terminal_depth(a["lat"], a["lon"], default_foliage_depth)
+    else:
+        depth_a, src_a = default_foliage_depth, "default"
+
+    if "foliage_depth" in b["attrs"]:
+        depth_b, src_b = float(b["attrs"]["foliage_depth"]), "KML"
+    elif use_nlcd:
+        depth_b, src_b = nlcd_terminal_depth(b["lat"], b["lon"], default_foliage_depth)
+    else:
+        depth_b, src_b = default_foliage_depth, "default"
+
+    foliage_db = (depth_a + depth_b) * forest_db_per_m
 
     total_distance = haversine(a["lat"], a["lon"], b["lat"], b["lon"])
     samples = max(2, int(total_distance / sample_distance))
@@ -281,6 +365,11 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
         "diffraction_db":  diffraction_db,
         "antenna_a":       h_a,
         "antenna_b":       h_b,
+        "foliage_db":      foliage_db,
+        "foliage_src_a":   src_a,
+        "foliage_src_b":   src_b,
+        "foliage_depth_a": depth_a,
+        "foliage_depth_b": depth_b,
     }
 
 
@@ -317,18 +406,20 @@ def _tab_table(headers: list[str], rows: list[list[str]]):
 
 def cmd_analyze(args):
     load_cache()
+    load_nlcd_cache()
     points = _active_points(parse_kml(args.kml))
 
     available_db = args.tx_power - args.rx_sensitivity
-    foliage_db   = 2 * args.forest_db_per_m * args.forest_terminal_depth
+    foliage_src  = "default" if args.no_nlcd else "NLCD"
 
     print()
     print("LoRa LOS / Fresnel + Link Budget Analysis")
     print(f"  TX {args.tx_power:.0f} dBm  |  RX {args.rx_sensitivity:.0f} dBm  "
           f"|  Budget {available_db:.0f} dB  |  Forest {args.forest_db_per_m} dB/m  "
           f"|  Default antenna ht {args.antenna_height:.0f} m")
-    print(f"  Foliage: {args.forest_db_per_m} dB/m x {args.forest_terminal_depth:.0f}m "
-          f"x 2 terminals = {foliage_db:.1f} dB  |  Fade margin {args.fade_margin:.0f} dB")
+    print(f"  Foliage terminal depth: {args.forest_terminal_depth:.0f}m default  "
+          f"|  Source: {foliage_src} (override per node with: set NAME foliage_depth M)  "
+          f"|  Fade margin {args.fade_margin:.0f} dB")
     print()
 
     reachable: dict[str, set[str]] = {p["name"]: set() for p in points}
@@ -338,11 +429,14 @@ def cmd_analyze(args):
         result = analyze_link(a, b,
                               freq_mhz=args.freq_mhz,
                               sample_distance=args.sample_distance,
-                              default_antenna_height=args.antenna_height)
+                              default_antenna_height=args.antenna_height,
+                              forest_db_per_m=args.forest_db_per_m,
+                              default_foliage_depth=args.forest_terminal_depth,
+                              use_nlcd=not args.no_nlcd)
 
         rf     = link_budget(result["distance_km"] * 1000, args.freq_mhz,
                              args.tx_power, args.rx_sensitivity,
-                             args.forest_db_per_m, args.forest_terminal_depth,
+                             result["foliage_db"],
                              result["diffraction_db"])
 
         margin = rf["margin_db"]
@@ -352,6 +446,8 @@ def cmd_analyze(args):
             reachable[a["name"]].add(b["name"])
             reachable[b["name"]].add(a["name"])
 
+        foliage_note = (f"{result['foliage_src_a']}/{result['foliage_src_b']} "
+                        f"{result['foliage_depth_a']:.0f}/{result['foliage_depth_b']:.0f}m")
         rows.append([
             f"{a['name']} -> {b['name']}",
             f"{result['distance_km']:.2f}km",
@@ -359,12 +455,14 @@ def cmd_analyze(args):
             f"{result['min_clearance_m']:.1f}m",
             f"{result['diffraction_db']:.1f}dB",
             f"{rf['foliage_db']:.1f}dB",
+            foliage_note,
             f"{rf['fspl_db']:.1f}dB",
             f"{margin:.1f}dB",
             status,
         ])
 
-    _tab_table(["Link", "Dist", "Ant", "MinClr", "Diffr", "Foliage", "FSPL", "Margin", "Status"], rows)
+    save_nlcd_cache()
+    _tab_table(["Link", "Dist", "Ant", "MinClr", "Diffr", "Foliage", "FolSrc", "FSPL", "Margin", "Status"], rows)
 
     # connected components via BFS
     seen       = set()
@@ -428,6 +526,8 @@ def main():
     p_a.add_argument("--forest-terminal-depth",type=float, default=30.0,   metavar="M")
     p_a.add_argument("--fade-margin",          type=float, default=10.0,   metavar="DB",
                      help="required reliability margin in dB for OK status (default: 10)")
+    p_a.add_argument("--no-nlcd", action="store_true",
+                     help="skip NLCD land cover lookup, use constant foliage depth for all nodes")
 
     args = parser.parse_args()
     {"list": cmd_list, "set": cmd_set, "analyze": cmd_analyze}[args.cmd](args)
