@@ -293,6 +293,9 @@ def cmd_analyze(args):
           f"{'FSPL':>6}  {'Foliage':>7}  {'Margin':>7}  RF")
     print("-" * 115)
 
+    # adjacency set for connectivity analysis (CLEAR or MARGINAL terrain + OK rf)
+    reachable: dict[str, set[str]] = {p["name"]: set() for p in points}
+
     for a, b in itertools.combinations(points, 2):
         result = analyze_link(a, b,
                               freq_mhz=args.freq_mhz,
@@ -307,6 +310,10 @@ def cmd_analyze(args):
         terrain_status = "CLEAR" if clr >= 0 else "MARGINAL" if clr >= -args.marginal_threshold else "BLOCKED"
         rf_status      = "OK"    if rf["margin_db"] >= 0 else "MARGINAL" if rf["margin_db"] >= -10 else "FAIL"
 
+        if terrain_status in ("CLEAR", "MARGINAL") and rf_status in ("OK", "MARGINAL"):
+            reachable[a["name"]].add(b["name"])
+            reachable[b["name"]].add(a["name"])
+
         ant_str = f"{result['antenna_a']:.0f}/{result['antenna_b']:.0f}m"
         print(
             f"{a['name']} -> {b['name']:<{43 - len(a['name']) - 4}} "
@@ -319,6 +326,35 @@ def cmd_analyze(args):
             f"{rf['margin_db']:7.1f}dB  "
             f"{rf_status}"
         )
+
+    # connected components via BFS
+    seen       = set()
+    components = []
+    for start in reachable:
+        if start in seen:
+            continue
+        component = set()
+        queue     = [start]
+        while queue:
+            node = queue.pop()
+            if node in component:
+                continue
+            component.add(node)
+            queue.extend(reachable[node] - component)
+        seen      |= component
+        components.append(sorted(component))
+
+    components.sort(key=len, reverse=True)
+
+    print()
+    print("Network Connectivity")
+    print("-" * 50)
+    if len(components) == 1:
+        print(f"  All {len(points)} nodes form a single connected mesh.")
+    else:
+        for i, comp in enumerate(components):
+            label = "ISOLATED" if len(comp) == 1 else f"Component {i + 1}"
+            print(f"  {label}: {', '.join(comp)}")
 
 
 # ------------------------------------------------------------
