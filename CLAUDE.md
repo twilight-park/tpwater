@@ -65,7 +65,10 @@ Elevation results cached in `los/elevation_cache.json`.
 ```bash
 ./los/los.py list                                 # placemarks + per-node attrs
 ./los/los.py set "Gate House" antenna_height 6    # write antenna height into KML
-./los/los.py analyze                              # pairwise link report + mesh connectivity
+./los/los.py analyze                              # pairwise link report + mesh connectivity (SF12 default)
+./los/los.py analyze --sf 9                       # model at SF9 (−129 dBm sensitivity, 157 dB budget)
+./los/los.py analyze --rx-sensitivity -136        # explicit sensitivity override
+./los/los.py analyze --fade-margin 20             # require 20 dB reliability margin
 ./los/los.py --kml path/to/file.kml analyze       # explicit KML (default: ~/Downloads/TWP-LOS.kml)
 ```
 

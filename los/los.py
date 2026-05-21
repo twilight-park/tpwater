@@ -504,7 +504,8 @@ def cmd_analyze(args):
 
     print()
     print("LoRa LOS / Fresnel + Link Budget Analysis")
-    print(f"  TX {args.tx_power:.0f} dBm  |  RX {args.rx_sensitivity:.0f} dBm  "
+    sf_label = f" (SF{args.sf})" if args.sf is not None else ""
+    print(f"  TX {args.tx_power:.0f} dBm  |  RX {args.rx_sensitivity:.0f} dBm{sf_label}  "
           f"|  Budget {available_db:.0f} dB  |  Forest {args.forest_db_per_m} dB/m  "
           f"|  Default antenna ht {args.antenna_height:.0f} m")
     foliage_mode = "constant terminal" if args.no_nlcd else f"NLCD path-integrated within {args.foliage_height:.0f}m of ground"
@@ -617,7 +618,13 @@ def main():
     p_a.add_argument("--freq-mhz",             type=float, default=915.0)
     p_a.add_argument("--sample-distance",      type=float, default=5.0,    metavar="M")
     p_a.add_argument("--tx-power",             type=float, default=28.0,   metavar="DBM")
-    p_a.add_argument("--rx-sensitivity",       type=float, default=-148.0, metavar="DBM")
+
+    sf_group = p_a.add_mutually_exclusive_group()
+    sf_group.add_argument("--rx-sensitivity", type=float, default=None,   metavar="DBM",
+                          help="RX sensitivity in dBm (default: −148 dBm = SF12)")
+    sf_group.add_argument("--sf",             type=int,   default=None,   metavar="N",
+                          choices=[7, 8, 9, 10, 11, 12],
+                          help="spreading factor (7–12); sets RX sensitivity automatically")
     p_a.add_argument("--forest-db-per-m",      type=float, default=0.3,    metavar="DB/M")
     p_a.add_argument("--foliage-max-db",       type=float, default=26.5,   metavar="DB",
                      help="ITU-R P.833 saturation limit for vegetation loss (default: 26.5 dB, measured at 949 MHz)")
@@ -629,7 +636,17 @@ def main():
     p_a.add_argument("--no-nlcd", action="store_true",
                      help="skip NLCD land cover lookup, assume forest wherever LOS is within foliage-height")
 
+    # SX1262 datasheet sensitivity at each spreading factor (BW 125 kHz, CR 4/5)
+    _SF_SENSITIVITY = {7: -123.0, 8: -126.0, 9: -129.0, 10: -133.0, 11: -141.0, 12: -148.0}
+
     args = parser.parse_args()
+
+    if args.cmd == "analyze":
+        if args.sf is not None:
+            args.rx_sensitivity = _SF_SENSITIVITY[args.sf]
+        elif args.rx_sensitivity is None:
+            args.rx_sensitivity = -148.0
+
     {"list": cmd_list, "set": cmd_set, "analyze": cmd_analyze}[args.cmd](args)
 
 
