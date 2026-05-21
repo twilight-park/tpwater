@@ -1,26 +1,15 @@
 #!/usr/bin/env python3
 
 """
-lora_los.py
-
-LoRa 915 MHz LOS / Fresnel analyzer for KML relay sites.
-
-Features:
-- Parses Google Earth KML placemarks
-- Downloads terrain elevations from OpenTopoData
-- Computes:
-    - geometric LOS
-    - Fresnel clearance
-    - Earth curvature
-- Generates pairwise link report
+los.py — LoRa 915 MHz LOS / Fresnel + link budget analyzer for KML sites.
 
 Usage:
-    python lora_los.py TWP-LOS.kml
-
-Optional:
-    --antenna-height 3
-    --freq-mhz 915
-    --samples 200
+    python los.py analyze                      # analyze ~/Downloads/TWP-LOS.kml
+    python los.py analyze path/to/file.kml
+    python los.py list
+    python los.py list path/to/file.kml
+    python los.py set "Gate House" antenna_height 6
+    python los.py set "Gate House" antenna_height 6 path/to/file.kml
 """
 
 import argparse
@@ -32,7 +21,10 @@ import time
 import requests
 import xml.etree.ElementTree as ET
 
-EARTH_RADIUS = 6371000.0
+EARTH_RADIUS  = 6371000.0
+DEFAULT_KML   = os.path.expanduser("~/Downloads/TWP-LOS.kml")
+KML_NS        = "http://www.opengis.net/kml/2.2"
+ET.register_namespace("", KML_NS)
 
 
 # ------------------------------------------------------------
@@ -40,24 +32,16 @@ EARTH_RADIUS = 6371000.0
 # ------------------------------------------------------------
 
 def free_space_path_loss(distance_m, freq_mhz):
-    """FSPL in dB."""
     return 20 * math.log10(distance_m) + 20 * math.log10(freq_mhz * 1e6) - 147.55
 
 
 def link_budget(distance_m, freq_mhz, tx_dbm, rx_sensitivity_dbm,
                 forest_db_per_m, forest_terminal_depth_m):
-    fspl      = free_space_path_loss(distance_m, freq_mhz)
-    # Foliage loss applies at both terminals (signal punches through canopy
-    # at each end); path between endpoints travels mostly through air.
-    foliage   = 2 * forest_db_per_m * forest_terminal_depth_m
-    available = tx_dbm - rx_sensitivity_dbm
-    margin    = available - fspl - foliage
-    return {
-        "fspl_db":      fspl,
-        "foliage_db":   foliage,
-        "available_db": available,
-        "margin_db":    margin,
-    }
+    fspl     = free_space_path_loss(distance_m, freq_mhz)
+    # Foliage applied at both terminals; mid-path travels mostly through air.
+    foliage  = 2 * forest_db_per_m * forest_terminal_depth_m
+    margin   = (tx_dbm - rx_sensitivity_dbm) - fspl - foliage
+    return {"fspl_db": fspl, "foliage_db": foliage, "margin_db": margin}
 
 
 # ------------------------------------------------------------
@@ -65,92 +49,111 @@ def link_budget(distance_m, freq_mhz, tx_dbm, rx_sensitivity_dbm,
 # ------------------------------------------------------------
 
 def haversine(lat1, lon1, lat2, lon2):
-    r = 6371000.0
-
     p1 = math.radians(lat1)
     p2 = math.radians(lat2)
-
     dp = math.radians(lat2 - lat1)
     dl = math.radians(lon2 - lon1)
-
-    a = (
-        math.sin(dp / 2) ** 2
-        + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    )
-
-    return 2 * r * math.asin(math.sqrt(a))
+    a  = math.sin(dp/2)**2 + math.cos(p1) * math.cos(p2) * math.sin(dl/2)**2
+    return 2 * EARTH_RADIUS * math.asin(math.sqrt(a))
 
 
 def fresnel_radius(d1, d2, freq_mhz):
-    """
-    Returns first Fresnel radius in meters.
-    d1/d2 in meters.
-    """
-
-    freq_hz = freq_mhz * 1e6
-    wavelength = 299792458.0 / freq_hz
-
+    wavelength = 299792458.0 / (freq_mhz * 1e6)
     return math.sqrt((wavelength * d1 * d2) / (d1 + d2))
 
 
 def earth_curvature_bulge(d1, d2):
-    """
-    Earth curvature bulge at point between endpoints.
-    """
-
     return (d1 * d2) / (2 * EARTH_RADIUS)
 
 
 # ------------------------------------------------------------
-# KML parsing
+# KML parsing and editing
 # ------------------------------------------------------------
 
+def _ns(tag):
+    return f"{{{KML_NS}}}{tag}"
+
+
+def _parse_extended_data(placemark):
+    """Return dict of name→value from <ExtendedData><Data> elements."""
+    attrs = {}
+    ed = placemark.find(_ns("ExtendedData"))
+    if ed is not None:
+        for data in ed.findall(_ns("Data")):
+            name = data.get("name")
+            val_el = data.find(_ns("value"))
+            if name and val_el is not None and val_el.text:
+                attrs[name] = val_el.text.strip()
+    return attrs
+
+
 def parse_kml(path):
-
-    ns = {
-        "kml": "http://www.opengis.net/kml/2.2"
-    }
-
     tree = ET.parse(path)
     root = tree.getroot()
-
     points = []
 
-    for placemark in root.findall(".//kml:Placemark", ns):
-
-        name_el = placemark.find("kml:name", ns)
-        point_el = placemark.find(".//kml:Point", ns)
+    for placemark in root.findall(f".//{_ns('Placemark')}"):
+        name_el  = placemark.find(_ns("name"))
+        point_el = placemark.find(f".//{_ns('Point')}")
 
         if name_el is None or point_el is None:
             continue
 
-        coord_el = point_el.find("kml:coordinates", ns)
-
+        coord_el = point_el.find(_ns("coordinates"))
         if coord_el is None:
             continue
 
         coords = (coord_el.text or "").strip().split()[0].split(",")
-
-        lon = float(coords[0])
-        lat = float(coords[1])
-
-        if len(coords) >= 3:
-            elev = float(coords[2])
-        else:
-            elev = 0.0
+        lon    = float(coords[0])
+        lat    = float(coords[1])
+        elev   = float(coords[2]) if len(coords) >= 3 else 0.0
 
         points.append({
-            "name": (name_el.text or "").strip(),
-            "lat": lat,
-            "lon": lon,
-            "elev": elev,
+            "name":  (name_el.text or "").strip(),
+            "lat":   lat,
+            "lon":   lon,
+            "elev":  elev,
+            "attrs": _parse_extended_data(placemark),
         })
 
     return points
 
 
+def set_kml_attr(path, placemark_name, key, value):
+    """Set an ExtendedData attribute on a named placemark and write back."""
+    tree = ET.parse(path)
+    root = tree.getroot()
+
+    for placemark in root.findall(f".//{_ns('Placemark')}"):
+        name_el = placemark.find(_ns("name"))
+        if name_el is None or (name_el.text or "").strip() != placemark_name:
+            continue
+
+        ed = placemark.find(_ns("ExtendedData"))
+        if ed is None:
+            ed = ET.SubElement(placemark, _ns("ExtendedData"))
+
+        for data in ed.findall(_ns("Data")):
+            if data.get("name") == key:
+                val_el = data.find(_ns("value"))
+                if val_el is None:
+                    val_el = ET.SubElement(data, _ns("value"))
+                val_el.text = str(value)
+                tree.write(path, encoding="unicode", xml_declaration=True)
+                return
+
+        data_el  = ET.SubElement(ed, _ns("Data"))
+        data_el.set("name", key)
+        val_el   = ET.SubElement(data_el, _ns("value"))
+        val_el.text = str(value)
+        tree.write(path, encoding="unicode", xml_declaration=True)
+        return
+
+    raise ValueError(f"Placemark '{placemark_name}' not found in {path}")
+
+
 # ------------------------------------------------------------
-# Terrain elevation
+# Terrain elevation cache
 # ------------------------------------------------------------
 
 CACHE_FILE = os.path.join(os.path.dirname(__file__), "elevation_cache.json")
@@ -174,16 +177,8 @@ def save_cache():
 
 
 def fetch_elevations(samples, batch_size=100):
-    """
-    samples:
-        [(lat, lon), ...]
-
-    Returns:
-        [elev_meters]
-    """
-
     elevations: list[float] = [0.0] * len(samples)
-    need_fetch  = []
+    need_fetch = []
 
     for i, (lat, lon) in enumerate(samples):
         key = _cache_key(lat, lon)
@@ -195,20 +190,18 @@ def fetch_elevations(samples, batch_size=100):
     if need_fetch:
         fetched = []
         for batch_start in range(0, len(need_fetch), batch_size):
-            batch = need_fetch[batch_start:batch_start + batch_size]
+            batch  = need_fetch[batch_start:batch_start + batch_size]
             coords = "|".join(f"{lat},{lon}" for _, lat, lon in batch)
-            url = f"https://api.opentopodata.org/v1/ned10m?locations={coords}"
             time.sleep(1.2)
-            r = requests.get(url)
+            r = requests.get(f"https://api.opentopodata.org/v1/ned10m?locations={coords}")
             r.raise_for_status()
             fetched += [
-                item["elevation"] if item["elevation"] is not None else 0
+                item["elevation"] if item["elevation"] is not None else 0.0
                 for item in r.json()["results"]
             ]
 
         for (i, lat, lon), elev in zip(need_fetch, fetched):
-            key = _cache_key(lat, lon)
-            _elev_cache[key] = elev
+            _elev_cache[_cache_key(lat, lon)] = elev
             elevations[i] = elev
 
         save_cache()
@@ -220,195 +213,105 @@ def fetch_elevations(samples, batch_size=100):
 # Path analysis
 # ------------------------------------------------------------
 
-def analyze_link(a, b,
-                 antenna_height=3.0,
-                 freq_mhz=915.0,
-                 sample_distance=5.0):
+def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_height=3.0):
+    h_a = float(a["attrs"].get("antenna_height", default_antenna_height))
+    h_b = float(b["attrs"].get("antenna_height", default_antenna_height))
 
-    total_distance = haversine(
-        a["lat"], a["lon"],
-        b["lat"], b["lon"]
-    )
-
+    total_distance = haversine(a["lat"], a["lon"], b["lat"], b["lon"])
     samples = max(2, int(total_distance / sample_distance))
 
-    sample_points = []
-
-    for i in range(samples + 1):
-
-        t = i / samples
-
-        lat = a["lat"] + (b["lat"] - a["lat"]) * t
-        lon = a["lon"] + (b["lon"] - a["lon"]) * t
-
-        sample_points.append((lat, lon))
+    sample_points = [
+        (a["lat"] + (b["lat"] - a["lat"]) * i / samples,
+         a["lon"] + (b["lon"] - a["lon"]) * i / samples)
+        for i in range(samples + 1)
+    ]
 
     terrain = fetch_elevations(sample_points)
+    h1 = terrain[0]  + h_a
+    h2 = terrain[-1] + h_b
 
-    h1 = terrain[0] + antenna_height
-    h2 = terrain[-1] + antenna_height
-
-    obstructed = False
-    min_clearance = 999999
+    min_clearance = float("inf")
+    obstructed    = False
 
     for i in range(1, samples):
-
         d1 = total_distance * (i / samples)
         d2 = total_distance - d1
 
-        terrain_h = terrain[i]
-
-        los_h = h1 + (h2 - h1) * (d1 / total_distance)
-
-        curvature = earth_curvature_bulge(d1, d2)
-
-        fresnel = fresnel_radius(d1, d2, freq_mhz)
-
-        required_clearance = terrain_h + curvature + 0.6 * fresnel
-
-        clearance = los_h - required_clearance
+        los_h    = h1 + (h2 - h1) * (d1 / total_distance)
+        required = terrain[i] + earth_curvature_bulge(d1, d2) + 0.6 * fresnel_radius(d1, d2, freq_mhz)
+        clearance = los_h - required
 
         min_clearance = min(min_clearance, clearance)
-
         if clearance < 0:
             obstructed = True
 
     return {
-        "distance_km": total_distance / 1000.0,
-        "samples": samples,
-        "obstructed": obstructed,
+        "distance_km":    total_distance / 1000.0,
+        "samples":        samples,
+        "obstructed":     obstructed,
         "min_clearance_m": min_clearance,
+        "antenna_a":      h_a,
+        "antenna_b":      h_b,
     }
 
 
 # ------------------------------------------------------------
-# Main
+# Subcommands
 # ------------------------------------------------------------
 
-def main():
+def cmd_list(args):
+    points = parse_kml(args.kml)
+    print(f"\n{len(points)} placemarks in {args.kml}\n")
+    for p in points:
+        attrs = p["attrs"]
+        attr_str = "  ".join(f"{k}={v}" for k, v in attrs.items()) if attrs else "(no extended data)"
+        print(f"  {p['name']:<25}  lat={p['lat']:.6f}  lon={p['lon']:.6f}  {attr_str}")
+    print()
 
-    parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "kml",
-        nargs="?",
-        default=os.path.expanduser("~/Downloads/TWP-LOS.kml"),
-    )
+def cmd_set(args):
+    set_kml_attr(args.kml, args.name, args.key, args.value)
+    print(f"Set {args.name!r}: {args.key} = {args.value}  ({args.kml})")
 
-    parser.add_argument(
-        "--antenna-height",
-        type=float,
-        default=3.0,
-    )
 
-    parser.add_argument(
-        "--freq-mhz",
-        type=float,
-        default=915.0,
-    )
-
-    parser.add_argument(
-        "--sample-distance",
-        type=float,
-        default=5.0,
-        metavar="METERS",
-        help="terrain sample interval in meters (default: 5)",
-    )
-
-    parser.add_argument(
-        "--marginal-threshold",
-        type=float,
-        default=2.0,
-        metavar="METERS",
-        help="clearance below 0 still considered marginal (default: 2)",
-    )
-
-    parser.add_argument(
-        "--tx-power",
-        type=float,
-        default=28.0,
-        metavar="DBM",
-        help="transmitter power in dBm (default: 28 — Heltec V4)",
-    )
-
-    parser.add_argument(
-        "--rx-sensitivity",
-        type=float,
-        default=-148.0,
-        metavar="DBM",
-        help="receiver sensitivity in dBm (default: -148 — SX1262 SF12)",
-    )
-
-    parser.add_argument(
-        "--forest-db-per-m",
-        type=float,
-        default=0.3,
-        metavar="DB_PER_M",
-        help="foliage attenuation dB/meter through canopy (default: 0.3)",
-    )
-
-    parser.add_argument(
-        "--forest-terminal-depth",
-        type=float,
-        default=30.0,
-        metavar="METERS",
-        help="estimated canopy depth at each terminal in meters (default: 30)",
-    )
-
-    args = parser.parse_args()
-
+def cmd_analyze(args):
     load_cache()
-
     points = parse_kml(args.kml)
 
     available_db = args.tx_power - args.rx_sensitivity
+    foliage_db   = 2 * args.forest_db_per_m * args.forest_terminal_depth
 
     print()
     print("LoRa LOS / Fresnel + Link Budget Analysis")
-    print(f"  TX {args.tx_power:.0f} dBm  |  RX sensitivity {args.rx_sensitivity:.0f} dBm  "
+    print(f"  TX {args.tx_power:.0f} dBm  |  RX {args.rx_sensitivity:.0f} dBm  "
           f"|  Budget {available_db:.0f} dB  |  Forest {args.forest_db_per_m} dB/m  "
-          f"|  Antenna ht {args.antenna_height:.0f} m")
+          f"|  Default antenna ht {args.antenna_height:.0f} m")
+    print(f"  Foliage: {args.forest_db_per_m} dB/m × {args.forest_terminal_depth:.0f}m "
+          f"× 2 terminals = {foliage_db:.1f} dB (constant)")
     print()
-    foliage_db = 2 * args.forest_db_per_m * args.forest_terminal_depth
-    print(f"  Foliage: {args.forest_db_per_m} dB/m × {args.forest_terminal_depth:.0f}m × 2 terminals = {foliage_db:.1f} dB (constant)")
-    print()
-    print(f"{'Link':<43} {'Dist':>6}  {'Terrain':8}  {'MinClr':>7}  "
-          f"{'FSPL':>6}  {'Foliage':>7}  {'Margin':>7}  {'RF':8}")
-    print("-" * 105)
+    print(f"{'Link':<43} {'Dist':>6}  {'Ant':>7}  {'Terrain':8}  {'MinClr':>7}  "
+          f"{'FSPL':>6}  {'Foliage':>7}  {'Margin':>7}  RF")
+    print("-" * 115)
 
     for a, b in itertools.combinations(points, 2):
+        result = analyze_link(a, b,
+                              freq_mhz=args.freq_mhz,
+                              sample_distance=args.sample_distance,
+                              default_antenna_height=args.antenna_height)
 
-        result = analyze_link(
-            a,
-            b,
-            antenna_height=args.antenna_height,
-            freq_mhz=args.freq_mhz,
-            sample_distance=args.sample_distance,
-        )
-
-        rf = link_budget(
-            result["distance_km"] * 1000,
-            args.freq_mhz,
-            args.tx_power,
-            args.rx_sensitivity,
-            args.forest_db_per_m,
-            args.forest_terminal_depth,
-        )
+        rf  = link_budget(result["distance_km"] * 1000, args.freq_mhz,
+                          args.tx_power, args.rx_sensitivity,
+                          args.forest_db_per_m, args.forest_terminal_depth)
 
         clr = result["min_clearance_m"]
-        if clr >= 0:
-            terrain_status = "CLEAR"
-        elif clr >= -args.marginal_threshold:
-            terrain_status = "MARGINAL"
-        else:
-            terrain_status = "BLOCKED"
+        terrain_status = "CLEAR" if clr >= 0 else "MARGINAL" if clr >= -args.marginal_threshold else "BLOCKED"
+        rf_status      = "OK"    if rf["margin_db"] >= 0 else "MARGINAL" if rf["margin_db"] >= -10 else "FAIL"
 
-        rf_status = "OK" if rf["margin_db"] >= 0 else "MARGINAL" if rf["margin_db"] >= -10 else "FAIL"
-
-        link_label = f"{a['name']} -> {b['name']}"
+        ant_str = f"{result['antenna_a']:.0f}/{result['antenna_b']:.0f}m"
         print(
-            f"{link_label:<43} "
+            f"{a['name']} -> {b['name']:<{43 - len(a['name']) - 4}} "
             f"{result['distance_km']:6.2f}km  "
+            f"{ant_str:>7}  "
             f"{terrain_status:8s}  "
             f"{clr:7.2f}m  "
             f"{rf['fspl_db']:6.1f}dB  "
@@ -416,6 +319,42 @@ def main():
             f"{rf['margin_db']:7.1f}dB  "
             f"{rf_status}"
         )
+
+
+# ------------------------------------------------------------
+# Main
+# ------------------------------------------------------------
+
+def main():
+    parser = argparse.ArgumentParser(prog="los.py")
+    parser.add_argument("--kml", default=DEFAULT_KML, metavar="FILE",
+                        help=f"KML file (default: {DEFAULT_KML})")
+
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    # list
+    sub.add_parser("list", help="list placemarks and their extended attributes")
+
+    # set
+    p_set = sub.add_parser("set", help="set an extended attribute on a placemark")
+    p_set.add_argument("name",  help="placemark name")
+    p_set.add_argument("key",   help="attribute name (e.g. antenna_height)")
+    p_set.add_argument("value", help="value to set")
+
+    # analyze
+    p_a = sub.add_parser("analyze", help="run LOS/Fresnel and link budget analysis")
+    p_a.add_argument("--antenna-height",       type=float, default=3.0,    metavar="M",
+                     help="default antenna height in meters (default: 3; overridden per-point by KML extended data)")
+    p_a.add_argument("--freq-mhz",             type=float, default=915.0)
+    p_a.add_argument("--sample-distance",      type=float, default=5.0,    metavar="M")
+    p_a.add_argument("--marginal-threshold",   type=float, default=2.0,    metavar="M")
+    p_a.add_argument("--tx-power",             type=float, default=28.0,   metavar="DBM")
+    p_a.add_argument("--rx-sensitivity",       type=float, default=-148.0, metavar="DBM")
+    p_a.add_argument("--forest-db-per-m",      type=float, default=0.3,    metavar="DB/M")
+    p_a.add_argument("--forest-terminal-depth",type=float, default=30.0,   metavar="M")
+
+    args = parser.parse_args()
+    {"list": cmd_list, "set": cmd_set, "analyze": cmd_analyze}[args.cmd](args)
 
 
 if __name__ == "__main__":
