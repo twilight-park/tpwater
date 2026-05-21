@@ -153,8 +153,24 @@ diffraction.
 - TX: 28 dBm (onboard PA over SX1262 native 22 dBm)
 - RX sensitivity: −148 dBm (SX1262 at SF12)
 - Link budget: 176 dB
-- Diffraction: ITU-R P.526 knife-edge at worst obstruction point
-- Foliage: ITU-R P.833-10 maximum excess attenuation model (see below)
+- Diffraction: ITU-R P.526 knife-edge at worst obstruction point, with NLCD canopy correction
+- Foliage: ITU-R P.833-10 maximum excess attenuation model
+
+**Terrain elevation data:**
+
+USGS 3DEP / NED (served via OpenTopoData at 1/3 arc-second ≈ 10m resolution) is a **bare-earth DTM** — elevations represent ground level with vegetation and structures removed. This is confirmed by USGS: *"The elevations in the 3DEP DEM represent the topographic bare-earth surface."* Consequence: the tool must add canopy height explicitly to terrain at ridge obstruction points.
+
+**Diffraction model (ITU-R P.526):**
+
+Uses the ITU-R P.526 knife-edge piecewise approximation at the single worst terrain obstruction point. The Fresnel clearance threshold is 60% of the first Fresnel zone radius (standard engineering practice).
+
+**Canopy correction at ridges:** After identifying the worst terrain point, the NLCD land cover class at that point is looked up. If the ridge is forested, the NLCD-derived canopy height is added to the terrain elevation before computing the diffraction parameter `v`. This corrects for the fact that the signal must clear the treetops, not just the dirt.
+
+This correction is applied *only* at the single worst ridge point — not along the entire path. Applying canopy everywhere would double-count with the foliage model for nodes that sit inside a forest canopy with otherwise clear terrain.
+
+**Knife-edge limitation:** The knife-edge model assumes a razor-thin obstacle. Real terrain ridges are wide and rounded, which produces more diffraction loss than knife-edge predicts — typically 3–15 dB additional loss depending on ridge width and curvature. The tool does not implement the ITU-R P.526 rounded obstacle correction (which requires computing terrain radius of curvature). Reported margins should be treated as **optimistic** for rounded-ridge obstructions; validate on-site for any link showing < 50 dB margin with significant terrain diffraction.
+
+**Empirical validation:** Office → Golf Course Well is known to fail with conventional 915 MHz radios. The model (with canopy correction) shows 31 dB diffraction + 20 dB foliage + 88 dB FSPL = 139 dB total path loss. Conventional 915 MHz radios with ~120 dB budget: −19 dB margin — consistent with observed failure. LoRa at SF12 (176 dB budget): 37 dB margin — workable but marginal.
 
 **Foliage loss model (ITU-R P.833-10):**
 
@@ -169,8 +185,8 @@ Defaults used: γ = 0.3 dB/m, A_m = 26.5 dB.
 - **Formula source:** ITU-R P.833-10 (2021), Annex 1, Section 3 — "Maximum excess attenuation model for terrestrial paths through woodland."
 - **A_m = 26.5 dB:** From P.833-10 tabulated measurement at 949 MHz (closest published frequency to 915 MHz). Tropical-tree formula from P.833-3 gives A_m = 0.18 × f^0.752 ≈ 30 dB at 915 MHz, consistent.
 - **γ = 0.3 dB/m:** Within the documented 0.2–0.5 dB/m range for deciduous forest at 900 MHz (P.833-9). Slightly higher than the 0.17 dB/m measured in P.833-10 because those measurements used a 25 m TX antenna above the canopy; our 3 m antenna-within-canopy geometry is a worse case.
-- **Saturation behavior:** At 75 m of forest: ~15 dB. At 225 m: ~24 dB. Beyond ~150 m the signal finds diffuse scattering paths and attenuation rate drops — modeled by exponential saturation rather than linear accumulation.
-- **NLCD integration:** Path segments are only counted as foliage where `0 ≤ LOS_above_terrain < canopy_height`. Terrain-blocked segments are handled exclusively by knife-edge diffraction to avoid double-counting.
+- **Saturation behavior:** At 75 m of forest: ~15 dB. At 225 m: ~24 dB. Beyond ~150 m the signal finds diffuse scattering paths — modeled by exponential saturation rather than linear accumulation.
+- **NLCD integration:** Path segments are only counted as foliage where `0 ≤ LOS_above_bare_terrain < NLCD_canopy_height`. Terrain-blocked segments are captured by knife-edge diffraction loss; foliage is not double-counted there.
 - **Empirical LoRa data:** Measured excess loss in hilly forested terrain at 920 MHz reached 40–52 dB above FSPL (includes diffraction); our separate diffraction + foliage model is consistent with this range.
 
 **Usage:**
@@ -189,8 +205,8 @@ Elevation responses cached in `los/elevation_cache.json` — subsequent runs are
 **Site findings (TWP-LOS.kml, 6 active nodes):**
 
 All 6 nodes form a single connected mesh at SF12 with the Heltec V4.
-Minimum margin across all links: ~37 dB (Golf Course Well → Spring Cottage, 0.67 km,
-20 dB knife-edge + 25 dB foliage). Most links are 43–95 dB.
+Minimum margin: ~33 dB (WWT Plant → Office and Golf Course Well → Spring Cottage).
+Most links are 37–95 dB.
 
 **Link reliability by margin:**
 
@@ -202,10 +218,11 @@ Minimum margin across all links: ~37 dB (Golf Course Well → Spring Cottage, 0.
 | < 20 dB | Risky; field test required |
 
 Real-world factors that consume margin: seasonal foliage variation (5–15 dB),
-terrain model error (2–5 dB), antenna mismatch (2–5 dB), multipath fading (3–10 dB).
-Worst-case stack ~30 dB, so 38 dB is reliable but worth a field RSSI check on the
-Water Plant → Golf Course Well path specifically, as its diffraction model is
-sensitive to small terrain errors (36 m obstruction depth).
+terrain model error (2–5 dB), antenna mismatch (2–5 dB), multipath fading (3–10 dB),
+rounded-ridge diffraction underestimate (3–15 dB). Worst-case stack ~40 dB.
+Links below 40 dB margin should be field-validated with RSSI measurements before
+relying on them. Office → Golf Course Well (37 dB) is in that category — a known
+marginal path (fails with conventional 915 MHz radios, workable with LoRa SF12).
 
 **Mesh flood behavior and hop count:**
 
