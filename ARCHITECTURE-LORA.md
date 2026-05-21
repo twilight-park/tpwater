@@ -165,10 +165,21 @@ covers any single-node failure. Reduce to 2 hops only if congestion symptoms app
 evaluation. Fewer deployed nodes means fewer rebroadcasts per packet and lower
 channel occupancy — prefer a minimal node count that maintains mesh connectivity.
 
-**Airtime:** At SF12, each packet occupies ~1–2 s. If congestion becomes an issue,
-dropping to SF10 or SF9 (after confirming RSSI in the field) cuts airtime 4–8×,
-which is more effective than reducing hop count. Stagger sensor report intervals
-across nodes to avoid simultaneous transmissions.
+**Node roles:** Meshtastic has no per-link disable, but node relay behavior is
+configurable. Set sensor-only nodes (those with a strong direct path to the gateway)
+to CLIENT role — they send and receive but do not rebroadcast for others. Only nodes
+that are genuinely needed as relay hops should be ROUTER. The gateway node itself
+should be ROUTER.
+
+The flood protocol already handles poor links naturally: packets arrive via the
+strongest path first; later arrivals via weaker paths are dropped as duplicates.
+Disabling poor links is not necessary.
+
+Optimization priority:
+1. Minimize deployed node count
+2. Set leaf/sensor nodes to CLIENT role
+3. Stagger sensor report intervals across nodes
+4. Reduce spreading factor (SF10/SF9) after field RSSI confirms headroom — cuts airtime 4–8× vs SF12
 
 ## Field Validation
 
