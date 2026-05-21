@@ -128,10 +128,36 @@ Elevation responses cached in `los/elevation_cache.json` — subsequent runs are
 **Site findings (TWP-LOS.kml, 9 nodes):**
 
 All 9 nodes form a single connected mesh at SF12 with the Heltec V4.
-Minimum margin across all links: ~68 dB (Gate House → Mid Station).
-Links with heavy terrain obstruction (−18m to −36m Fresnel clearance) still
-show 80+ dB margin because knife-edge diffraction loss (18–25 dB) is well within
-the 176 dB link budget.
+Minimum margin across all links: ~38 dB (Water Plant → Golf Course Well, 1.36 km,
+36 m Fresnel obstruction, 25 dB knife-edge loss). Most links are 55–90 dB.
+
+**Link reliability by margin:**
+
+| Margin | Assessment |
+|--------|------------|
+| > 50 dB | Essentially bulletproof |
+| 35–50 dB | Reliable; survives summer foliage + model error |
+| 20–35 dB | Workable; validate on-site, consider raising antenna |
+| < 20 dB | Risky; field test required |
+
+Real-world factors that consume margin: seasonal foliage variation (5–15 dB),
+terrain model error (2–5 dB), antenna mismatch (2–5 dB), multipath fading (3–10 dB).
+Worst-case stack ~30 dB, so 38 dB is reliable but worth a field RSSI check on the
+Water Plant → Golf Course Well path specifically, as its diffraction model is
+sensitive to small terrain errors (36 m obstruction depth).
+
+**Mesh flood behavior:**
+
+Meshtastic uses managed flood with duplicate suppression (not spanning tree). Each
+packet is rebroadcast once per node; duplicates are dropped by packet ID. With 9
+nodes having strong mutual visibility, a single transmission generates 4–6
+rebroadcasts — the gateway receives the packet via multiple paths, improving
+reliability. The hub sees one MQTT delivery regardless.
+
+At SF12, each packet occupies ~1–2 s of airtime. With low-frequency sensor
+reporting (readings every few seconds per node) this is negligible, but sensor
+report intervals should be staggered across nodes to avoid simultaneous
+transmissions causing collisions.
 
 ## Status
 
