@@ -195,10 +195,23 @@ NLCD_CACHE_FILE = os.path.join(os.path.dirname(__file__), "nlcd_cache.json")
 NLCD_WMS_URL    = "https://www.mrlc.gov/geoserver/mrlc_display/NLCD_2021_Land_Cover_L48/wms"
 _nlcd_cache: dict = {}
 
-# depth multipliers by NLCD class (applied to default terminal depth)
-_NLCD_DEPTH: dict[int, float] = {
-    41: 1.0, 42: 1.0, 43: 1.0, 90: 1.0,   # forest / woody wetland — full depth
-    52: 0.5, 95: 0.3,                        # shrub / emergent wetland — partial
+# Typical canopy height in meters by NLCD class.
+# Based on eastern US forest structure; used as the LOS proximity threshold
+# when --foliage-height is not explicitly set (i.e. this replaces the 30m default).
+# True lidar canopy height (3DEP DSM minus bare-earth DEM) is not available via
+# a simple point API; these values are forestry-derived per-class estimates.
+_NLCD_CANOPY_HEIGHT: dict[int, float] = {
+    41: 22.0,   # deciduous forest
+    42: 18.0,   # evergreen forest
+    43: 20.0,   # mixed forest
+    90: 15.0,   # woody wetlands
+    52:  3.0,   # shrub/scrub
+    95:  1.5,   # emergent herbaceous wetlands
+}
+# foliage loss multiplier (fraction of canopy height counted as attenuating depth)
+_NLCD_FOLIAGE_MULT: dict[int, float] = {
+    41: 1.0, 42: 1.0, 43: 1.0, 90: 1.0,
+    52: 0.5, 95: 0.3,
 }
 
 
@@ -237,22 +250,15 @@ def _fetch_nlcd_class(lat, lon) -> int | None:
 
 
 def nlcd_class_at(lat, lon) -> int | None:
-    key = f"{lat:.5f},{lon:.5f}"
+    # 4 decimal places ≈ 10 m — good enough for 30 m NLCD resolution, improves cache hit rate
+    key = f"{lat:.4f},{lon:.4f}"
     if key in _nlcd_cache:
         v = _nlcd_cache[key]
         return int(v) if v is not None else None
     cls = _fetch_nlcd_class(lat, lon)
     _nlcd_cache[key] = cls
+    time.sleep(0.05)
     return cls
-
-
-def nlcd_terminal_depth(lat, lon, default_depth: float) -> tuple[float, str]:
-    """Return (terminal_depth_m, source_label) for a node position."""
-    cls = nlcd_class_at(lat, lon)
-    if cls is None:
-        return default_depth, "default"
-    mult = _NLCD_DEPTH.get(cls, 0.0)
-    return default_depth * mult, f"NLCD:{cls}"
 
 
 EPQS_URL = "https://epqs.nationalmap.gov/v1/json"
@@ -299,30 +305,14 @@ def fetch_elevations(samples):
 # ------------------------------------------------------------
 
 def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_height=3.0,
-                 forest_db_per_m=0.3, default_foliage_depth=30.0, use_nlcd=True):
+                 forest_db_per_m=0.3, use_nlcd=True, foliage_height=30.0):
     h_a        = float(a["attrs"].get("antenna_height", default_antenna_height))
     h_b        = float(b["attrs"].get("antenna_height", default_antenna_height))
     wavelength = 299792458.0 / (freq_mhz * 1e6)
 
-    # foliage terminal depth: KML foliage_depth > NLCD > constant default
-    if "foliage_depth" in a["attrs"]:
-        depth_a, src_a = float(a["attrs"]["foliage_depth"]), "KML"
-    elif use_nlcd:
-        depth_a, src_a = nlcd_terminal_depth(a["lat"], a["lon"], default_foliage_depth)
-    else:
-        depth_a, src_a = default_foliage_depth, "default"
-
-    if "foliage_depth" in b["attrs"]:
-        depth_b, src_b = float(b["attrs"]["foliage_depth"]), "KML"
-    elif use_nlcd:
-        depth_b, src_b = nlcd_terminal_depth(b["lat"], b["lon"], default_foliage_depth)
-    else:
-        depth_b, src_b = default_foliage_depth, "default"
-
-    foliage_db = (depth_a + depth_b) * forest_db_per_m
-
     total_distance = haversine(a["lat"], a["lon"], b["lat"], b["lon"])
-    samples = max(2, int(total_distance / sample_distance))
+    samples        = max(2, int(total_distance / sample_distance))
+    actual_spacing = total_distance / samples
 
     sample_points = [
         (a["lat"] + (b["lat"] - a["lat"]) * i / samples,
@@ -334,10 +324,11 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
     h1 = terrain[0]  + h_a
     h2 = terrain[-1] + h_b
 
-    min_clearance = float("inf")
-    worst_d1 = total_distance / 2
-    worst_d2 = total_distance / 2
-    worst_geo_excess = 0.0   # terrain + curvature - los_h at worst point
+    min_clearance    = float("inf")
+    worst_d1         = total_distance / 2
+    worst_d2         = total_distance / 2
+    worst_geo_excess = 0.0
+    nlcd_fetches     = 0
 
     for i in range(1, samples):
         d1 = total_distance * (i / samples)
@@ -352,11 +343,62 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
             min_clearance    = clearance
             worst_d1         = d1
             worst_d2         = d2
-            worst_geo_excess = terrain[i] + curvature - los_h  # positive = above LOS
+            worst_geo_excess = terrain[i] + curvature - los_h
 
-    # Knife-edge diffraction at worst obstruction point
     v              = worst_geo_excess * math.sqrt(2 * (worst_d1 + worst_d2) / (wavelength * worst_d1 * worst_d2))
     diffraction_db = knife_edge_loss(v)
+
+    def _terminal_depth(start: int, step: int) -> tuple[float, int]:
+        """Walk from a node endpoint outward, accumulating forested meters until
+        the LOS rises above the canopy or reaches open land.  Returns (meters, fetches)."""
+        meters = 0.0
+        fetches = 0
+        for idx in range(start, samples if step > 0 else 0, step):
+            los_h_i = h1 + (h2 - h1) * (idx / samples)
+            los_above = los_h_i - terrain[idx]
+            lat_i, lon_i = sample_points[idx]
+            if use_nlcd:
+                key = f"{lat_i:.4f},{lon_i:.4f}"
+                cached = key in _nlcd_cache
+                cls = nlcd_class_at(lat_i, lon_i)
+                if not cached:
+                    fetches += 1
+                canopy_ht = _NLCD_CANOPY_HEIGHT.get(cls, 0.0) if cls is not None else foliage_height
+                mult      = _NLCD_FOLIAGE_MULT.get(cls, 0.0) if cls is not None else 1.0
+                threshold = min(foliage_height, canopy_ht) if cls is not None else foliage_height
+            else:
+                mult = 1.0
+                threshold = foliage_height
+            if mult > 0 and los_above < threshold:
+                meters += actual_spacing * mult
+            else:
+                break  # LOS cleared canopy or reached open land
+        return meters, fetches
+
+    # KML foliage_depth override bypasses path walk; --no-nlcd uses constant terminal depth
+    if "foliage_depth" in a["attrs"]:
+        depth_a, fa = float(a["attrs"]["foliage_depth"]), 0
+        src_a = "KML"
+    elif use_nlcd:
+        depth_a, fa = _terminal_depth(1, 1)
+        src_a = "path"
+    else:
+        depth_a, fa = foliage_height, 0
+        src_a = "const"
+
+    if "foliage_depth" in b["attrs"]:
+        depth_b, fb = float(b["attrs"]["foliage_depth"]), 0
+        src_b = "KML"
+    elif use_nlcd:
+        depth_b, fb = _terminal_depth(samples - 1, -1)
+        src_b = "path"
+    else:
+        depth_b, fb = foliage_height, 0
+        src_b = "const"
+
+    nlcd_fetches = fa + fb
+    foliage_db   = (depth_a + depth_b) * forest_db_per_m
+    foliage_src  = f"{src_a}:{depth_a:.0f}m+{src_b}:{depth_b:.0f}m"
 
     return {
         "distance_km":     total_distance / 1000.0,
@@ -366,10 +408,8 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
         "antenna_a":       h_a,
         "antenna_b":       h_b,
         "foliage_db":      foliage_db,
-        "foliage_src_a":   src_a,
-        "foliage_src_b":   src_b,
-        "foliage_depth_a": depth_a,
-        "foliage_depth_b": depth_b,
+        "foliage_src":     foliage_src,
+        "nlcd_fetches":    nlcd_fetches,
     }
 
 
@@ -410,16 +450,14 @@ def cmd_analyze(args):
     points = _active_points(parse_kml(args.kml))
 
     available_db = args.tx_power - args.rx_sensitivity
-    foliage_src  = "default" if args.no_nlcd else "NLCD"
 
     print()
     print("LoRa LOS / Fresnel + Link Budget Analysis")
     print(f"  TX {args.tx_power:.0f} dBm  |  RX {args.rx_sensitivity:.0f} dBm  "
           f"|  Budget {available_db:.0f} dB  |  Forest {args.forest_db_per_m} dB/m  "
           f"|  Default antenna ht {args.antenna_height:.0f} m")
-    print(f"  Foliage terminal depth: {args.forest_terminal_depth:.0f}m default  "
-          f"|  Source: {foliage_src} (override per node with: set NAME foliage_depth M)  "
-          f"|  Fade margin {args.fade_margin:.0f} dB")
+    foliage_mode = "constant terminal" if args.no_nlcd else f"NLCD path-integrated within {args.foliage_height:.0f}m of ground"
+    print(f"  Foliage: {foliage_mode}  |  Fade margin {args.fade_margin:.0f} dB")
     print()
 
     reachable: dict[str, set[str]] = {p["name"]: set() for p in points}
@@ -431,8 +469,8 @@ def cmd_analyze(args):
                               sample_distance=args.sample_distance,
                               default_antenna_height=args.antenna_height,
                               forest_db_per_m=args.forest_db_per_m,
-                              default_foliage_depth=args.forest_terminal_depth,
-                              use_nlcd=not args.no_nlcd)
+                              use_nlcd=not args.no_nlcd,
+                              foliage_height=args.foliage_height)
 
         rf     = link_budget(result["distance_km"] * 1000, args.freq_mhz,
                              args.tx_power, args.rx_sensitivity,
@@ -446,8 +484,6 @@ def cmd_analyze(args):
             reachable[a["name"]].add(b["name"])
             reachable[b["name"]].add(a["name"])
 
-        foliage_note = (f"{result['foliage_src_a']}/{result['foliage_src_b']} "
-                        f"{result['foliage_depth_a']:.0f}/{result['foliage_depth_b']:.0f}m")
         rows.append([
             f"{a['name']} -> {b['name']}",
             f"{result['distance_km']:.2f}km",
@@ -455,7 +491,7 @@ def cmd_analyze(args):
             f"{result['min_clearance_m']:.1f}m",
             f"{result['diffraction_db']:.1f}dB",
             f"{rf['foliage_db']:.1f}dB",
-            foliage_note,
+            result["foliage_src"],
             f"{rf['fspl_db']:.1f}dB",
             f"{margin:.1f}dB",
             status,
@@ -526,8 +562,10 @@ def main():
     p_a.add_argument("--forest-terminal-depth",type=float, default=30.0,   metavar="M")
     p_a.add_argument("--fade-margin",          type=float, default=10.0,   metavar="DB",
                      help="required reliability margin in dB for OK status (default: 10)")
+    p_a.add_argument("--foliage-height",         type=float, default=30.0,   metavar="M",
+                     help="apply foliage loss only where LOS is within this height of ground (default: 30m)")
     p_a.add_argument("--no-nlcd", action="store_true",
-                     help="skip NLCD land cover lookup, use constant foliage depth for all nodes")
+                     help="skip NLCD land cover lookup, assume forest wherever LOS is within foliage-height")
 
     args = parser.parse_args()
     {"list": cmd_list, "set": cmd_set, "analyze": cmd_analyze}[args.cmd](args)
