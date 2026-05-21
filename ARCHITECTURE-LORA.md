@@ -2,18 +2,62 @@
 
 ## Overview
 
-Remote sensor nodes are replaced with Heltec V4 (ESP32-S3 + SX1262) devices running
-custom Meshtastic firmware. The hub remains a Raspberry Pi running the existing Tcl
-stack, now with an MQTT interface via mosquitto.
+Field Raspberry Pis are retained but the cellular/jbr::msg transport is replaced
+with a LoRa mesh using Heltec V4 (ESP32-S3 + SX1262) devices running Meshtastic.
+Each field Pi publishes sensor data to a local mosquitto broker; a co-located Heltec
+bridges that data over LoRa to the hub Pi. The hub Pi runs mosquitto and hub.tcl
+subscribes to it instead of jbr::msg.
 
-## Topology
+## Migration Strategy
+
+Migration is done in two phases to allow parallel validation before cutting over.
+
+### Phase 1 — Intermediate (LoRa alongside cell)
 
 ```
-[Field Heltec]                 [Field Heltec]
- reads MCP342x                  reads MCP342x
- controls switches              controls switches
- publishes → LoRa               publishes → LoRa
- subscribes ← LoRa              subscribes ← LoRa
+Field Pi → jbr::msg → cell → hub Pi        (existing, unchanged)
+Field Pi → local mosquitto
+                ↑ WiFi
+           Field Heltec
+                ↓ LoRa mesh
+           Gateway Heltec
+                ↓ WiFi
+           Hub mosquitto → hub.tcl (new, parallel)
+```
+
+- Field Pi publishes sensor readings to both jbr::msg and local mosquitto
+- Field Heltec connects to local Pi WiFi, subscribes to local mosquitto,
+  rebroadcasts over LoRa mesh
+- Hub Pi runs mosquitto; hub.tcl subscribes to it in parallel with jbr::msg
+- Both data streams run simultaneously — diff them to validate LoRa delivery
+- No custom sensor firmware needed: Pi still reads I2C/GPIO, Heltec only bridges MQTT
+
+**Field Heltec firmware requirement (Phase 1):** subscribe to local Pi mosquitto
+over WiFi and forward topics over LoRa mesh. Simpler than full sensor driver but
+still custom firmware — not stock Meshtastic.
+
+### Phase 2 — Final (LoRa only)
+
+```
+Field Pi → local mosquitto
+                ↑ WiFi
+           Field Heltec
+                ↓ LoRa mesh
+           Gateway Heltec
+                ↓ WiFi
+           Hub mosquitto → hub.tcl
+```
+
+Once LoRa delivery is validated: shut down cell service, remove jbr::msg calls
+from hub.tcl and client Tcl scripts.
+
+### Final Topology
+
+```
+[Field Pi + Heltec]           [Field Pi + Heltec]
+ Pi reads sensors               Pi reads sensors
+ Pi → local mosquitto           Pi → local mosquitto
+ Heltec bridges → LoRa          Heltec bridges → LoRa
        |                              |
        └──────── LoRa mesh ───────────┘
                       |
@@ -21,7 +65,7 @@ stack, now with an MQTT interface via mosquitto.
                Meshtastic MQTT bridge
                Pi local WiFi
                       |
-                 [Pi mosquitto]
+                 [Hub Pi mosquitto]
                       |
                  [hub.tcl]
                   subscribes sensor topics
@@ -30,26 +74,25 @@ stack, now with an MQTT interface via mosquitto.
 
 ## Components
 
-### Field Nodes — Heltec WiFi LoRa 32 V4
+### Field Nodes — Raspberry Pi + Heltec WiFi LoRa 32 V4
 
-- **MCU**: ESP32-S3
-- **Radio**: SX1262 (LoRa 915 MHz)
-- **Display**: OLED (local status)
-- **Firmware**: Meshtastic with custom sensor/control additions
-- **Primary transport**: LoRa — WiFi not used in the field
-- **Sensors**: MCP342x or ADS1115 via I2C (flow, tank level, analog inputs)
-- **Outputs**: GPIO switch control (pumps, valves)
-- **Mesh relay**: every node relays for others — nodes out of direct range of the
-  gateway reach it through intermediate nodes (Meshtastic managed flood, default 3 hops)
+- **Pi**: reads MCP342x/ADS1115 sensors and GPIO outputs (unchanged)
+- **Pi**: publishes to local mosquitto (`tpwater/<station>/<name>`)
+- **Heltec MCU**: ESP32-S3
+- **Heltec radio**: SX1262 (LoRa 915 MHz)
+- **Heltec display**: OLED (local status)
+- **Heltec firmware**: custom — subscribes to local Pi mosquitto over WiFi,
+  forwards sensor topics over LoRa mesh; subscribes to command topics from mesh,
+  forwards to Pi mosquitto for output control
 
 ### Gateway Node — Heltec WiFi LoRa 32 V4
 
-- Co-located with the Pi hub
+- Co-located with the hub Pi
 - Runs standard Meshtastic in MQTT gateway mode
-- Connects to Pi via local WiFi
+- Connects to hub Pi via local WiFi
 - Bridges mesh ↔ mosquitto bidirectionally:
   - Sensor data: mesh → mosquitto
-  - Commands: mosquitto → mesh → field nodes
+  - Commands: mosquitto → mesh → field Heltecs → field Pi mosquitto
 
 ### Hub — Raspberry Pi
 
@@ -71,16 +114,17 @@ Topics follow the pattern `tpwater/<station>/<measurement>`:
 | hub → node | `tpwater/waterplant/golf/set` | 0 or 1 |
 | hub → node | `tpwater/waterplant/thrd/set` | 0 or 1 |
 
-## Custom Meshtastic Firmware
+## Custom Heltec Firmware
 
-Standard Meshtastic does not support MCP342x or ADS1115. Field node firmware requires
-two additions:
+Standard Meshtastic does not support the MQTT bridge role needed at field nodes.
+Field node firmware requires:
 
-1. **Sensor driver** — MCP342x (and/or ADS1115) I2C ADC added to the Meshtastic
-   telemetry module. Publishes calibrated readings on the configured interval.
+1. **MQTT subscriber** — connect to local Pi WiFi, subscribe to
+   `tpwater/<station>/#`, forward payloads over LoRa mesh.
 
-2. **Switch control** — subscribes to command topics via the mesh, toggles GPIO
-   outputs (pumps, valves) on receipt.
+2. **Command forwarder** — subscribe to command topics from mesh
+   (`tpwater/<station>/+/set`), publish to local Pi mosquitto so the Pi can
+   act on GPIO outputs.
 
 Gateway node runs unmodified Meshtastic firmware.
 
@@ -212,11 +256,20 @@ node pairs. Pay particular attention to Water Plant → Golf Course Well (predic
 
 ## Status
 
+**Phase 0 — RF validation**
 - [ ] Radio range test on site — **do this first**
 - [ ] Meshtastic mesh relay test (multi-hop)
-- [ ] MCP342x sensor driver for Meshtastic
-- [ ] Switch control handler for Meshtastic
-- [ ] `jbr::mqtt` package (or vendored Tcl MQTT client)
-- [ ] Hub MQTT integration (replace `jbr::msg` calls)
-- [ ] End-to-end test: sensor → LoRa → gateway → mosquitto → hub.tcl
-- [ ] Command path test: hub.tcl → mosquitto → gateway → mesh → field node GPIO
+- [ ] Collect per-link RSSI/SNR, compare against `los.py` predictions
+
+**Phase 1 — Intermediate (parallel operation)**
+- [ ] Add mosquitto to each field Pi; publish sensor readings to local broker
+- [ ] Heltec firmware: WiFi → subscribe local MQTT → forward over LoRa mesh
+- [ ] Heltec firmware: receive command topics from mesh → publish to local Pi MQTT
+- [ ] Hub mosquitto setup
+- [ ] Hub MQTT integration in hub.tcl (parallel to existing jbr::msg)
+- [ ] End-to-end test: Pi sensor → local MQTT → Heltec → LoRa → gateway → hub MQTT → hub.tcl
+- [ ] Validate data matches between jbr::msg and LoRa streams
+
+**Phase 2 — Cutover**
+- [ ] Shut down cell service
+- [ ] Remove jbr::msg from hub.tcl and client Tcl scripts
