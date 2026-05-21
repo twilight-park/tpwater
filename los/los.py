@@ -340,6 +340,7 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
 
     has_kml_foliage  = "foliage_depth" in a["attrs"] or "foliage_depth" in b["attrs"]
 
+    detail           = []
     min_clearance    = float("inf")
     worst_d1         = total_distance / 2
     worst_d2         = total_distance / 2
@@ -446,6 +447,20 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
                 threshold = foliage_height
             if mult > 0 and 0 <= above < threshold:
                 foliage_meters += actual_spacing * mult
+                status = "foliage"
+            elif above < 0:
+                status = "blocked"
+            else:
+                status = "clear"
+            detail.append({
+                "dist_m":    i * actual_spacing,
+                "terrain_m": terrain[i],
+                "los_m":     los_h_i,
+                "above_m":   above,
+                "nlcd":      cls,
+                "canopy_m":  canopy_ht,
+                "status":    status,
+            })
         foliage_db  = foliage_loss(foliage_meters, forest_db_per_m, foliage_max_db)
         foliage_src = f"path:{foliage_meters:.0f}m"
 
@@ -461,6 +476,7 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
         "foliage_db":           foliage_db,
         "foliage_src":          foliage_src,
         "nlcd_fetches":         nlcd_fetches,
+        "detail":               detail,
     }
 
 
@@ -513,7 +529,8 @@ def cmd_analyze(args):
     print()
 
     reachable: dict[str, set[str]] = {p["name"]: set() for p in points}
-    rows: list[list[str]] = []
+    rows:       list[list[str]]          = []
+    link_details: list[tuple[str, list]] = []
 
     for a, b in itertools.combinations(points, 2):
         result = analyze_link(a, b,
@@ -557,9 +574,33 @@ def cmd_analyze(args):
             f"{margin:.1f}dB",
             status,
         ])
+        link_details.append((f"{a['name']} -> {b['name']}", result["detail"]))
 
     save_nlcd_cache()
     _tab_table(["Link", "Dist", "Ant", "MinClr", "Diffr", "Foliage", "FolSrc", "FSPL", "Margin", "Status"], rows)
+
+    if args.verbose:
+        _NLCD_NAME = {
+            11: "Open Water", 21: "Developed/Open", 22: "Developed/Low",
+            23: "Developed/Med", 24: "Developed/High", 31: "Barren",
+            41: "Deciduous", 42: "Evergreen", 43: "Mixed Forest",
+            52: "Shrub", 71: "Grassland", 81: "Pasture", 82: "Crops",
+            90: "Woody Wetlands", 95: "Herbaceous Wetlands",
+        }
+        for link_name, detail in link_details:
+            if not detail:
+                continue
+            print(f"\n  {link_name}")
+            print(f"  {'Dist':>6}  {'Terrain':>8}  {'LOS':>8}  {'Above':>7}  {'NLCD':<20}  {'Canopy':>6}  Status")
+            print(f"  {'----':>6}  {'-------':>8}  {'---':>8}  {'-----':>7}  {'----':<20}  {'------':>6}  ------")
+            prev_key = None
+            for d in detail:
+                key = (d["status"], d["nlcd"])
+                if key != prev_key:
+                    nlcd_label = _NLCD_NAME.get(d["nlcd"], str(d["nlcd"]) if d["nlcd"] else "?")
+                    print(f"  {d['dist_m']:>5.0f}m  {d['terrain_m']:>7.1f}m  {d['los_m']:>7.1f}m  "
+                          f"{d['above_m']:>+6.1f}m  {nlcd_label:<20}  {d['canopy_m']:>5.0f}m  {d['status']}")
+                    prev_key = key
 
     # connected components via BFS
     seen       = set()
@@ -635,6 +676,8 @@ def main():
                      help="apply foliage loss only where LOS is within this height of ground (default: 30m)")
     p_a.add_argument("--no-nlcd", action="store_true",
                      help="skip NLCD land cover lookup, assume forest wherever LOS is within foliage-height")
+    p_a.add_argument("--verbose", "-v", action="store_true",
+                     help="print per-segment foliage/terrain breakdown for each link")
 
     # SX1262 datasheet sensitivity at each spreading factor (BW 125 kHz, CR 4/5)
     _SF_SENSITIVITY = {7: -123.0, 8: -126.0, 9: -129.0, 10: -133.0, 11: -141.0, 12: -148.0}
