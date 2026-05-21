@@ -255,6 +255,14 @@ def main():
         help="terrain sample interval in meters (default: 5)",
     )
 
+    parser.add_argument(
+        "--marginal-threshold",
+        type=float,
+        default=2.0,
+        metavar="METERS",
+        help="clearance below 0 still considered marginal (default: 2)",
+    )
+
     args = parser.parse_args()
 
     points = parse_kml(args.kml)
@@ -273,11 +281,13 @@ def main():
             sample_distance=args.sample_distance,
         )
 
-        status = (
-            "CLEAR"
-            if not result["obstructed"]
-            else "BLOCKED"
-        )
+        clr = result["min_clearance_m"]
+        if clr >= 0:
+            status = "CLEAR"
+        elif clr >= -args.marginal_threshold:
+            status = "MARGINAL"
+        else:
+            status = "BLOCKED"
 
         print(
             f"{a['name']:20s} -> "
