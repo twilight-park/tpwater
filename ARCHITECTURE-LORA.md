@@ -170,6 +170,35 @@ dropping to SF10 or SF9 (after confirming RSSI in the field) cuts airtime 4–8�
 which is more effective than reducing hop count. Stagger sensor report intervals
 across nodes to avoid simultaneous transmissions.
 
+## Field Validation
+
+Meshtastic nodes report RSSI (dBm) and SNR (dB) for every received packet via the
+SX1262 hardware. These are available on the Heltec OLED display, the Meshtastic
+mobile app (mesh map view), and in the MQTT JSON envelope (`rx_rssi`, `rx_snr`
+fields on every gateway-bridged packet).
+
+**Validating `los.py` predictions:**
+
+Expected RSSI for a link can be read directly from the analysis output:
+
+```
+Expected RSSI ≈ RX_sensitivity + Margin
+              = −148 + margin_db  (dBm)
+```
+
+| Predicted margin | Expected RSSI |
+|-----------------|---------------|
+| 38 dB (worst link) | −110 dBm |
+| 55 dB (typical) | −93 dBm |
+| 75 dB (clear LOS) | −73 dBm |
+
+If measured RSSI is better than predicted, the terrain model is conservative. If
+worse, the DEM underestimates obstruction — consider raising antenna height.
+
+Monitor the MQTT stream during the field test to collect per-link RSSI/SNR for all
+node pairs. Pay particular attention to Water Plant → Golf Course Well (predicted
+−110 dBm), the link most sensitive to terrain model error.
+
 ## Status
 
 - [ ] Radio range test on site — **do this first**
