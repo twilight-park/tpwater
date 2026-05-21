@@ -36,17 +36,17 @@ def free_space_path_loss(distance_m, freq_mhz):
 
 
 def knife_edge_loss(v):
-    """ITU-R P.526 knife-edge diffraction loss in dB. 0 for clear paths (v <= -1)."""
+    """ITU-R P.526 knife-edge diffraction loss in dB (positive = loss). 0 for clear paths (v <= -1)."""
     if v <= -1:
         return 0.0
     elif v <= 0:
-        return 20 * math.log10(0.5 - 0.62 * v)
+        return -20 * math.log10(0.5 - 0.62 * v)
     elif v <= 1:
-        return 20 * math.log10(0.5 * math.exp(-0.95 * v))
+        return -20 * math.log10(0.5 * math.exp(-0.95 * v))
     elif v <= 2.4:
-        return 20 * math.log10(0.4 - math.sqrt(max(0.0, 0.1184 - (0.38 - 0.1 * v) ** 2)))
+        return -20 * math.log10(0.4 - math.sqrt(max(0.0, 0.1184 - (0.38 - 0.1 * v) ** 2)))
     else:
-        return 20 * math.log10(0.225 / v)
+        return -20 * math.log10(0.225 / v)
 
 
 def link_budget(distance_m, freq_mhz, tx_dbm, rx_sensitivity_dbm,
