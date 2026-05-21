@@ -173,17 +173,17 @@ def test_foliage_open_land_is_zero():
     assert result["foliage_db"] == 0.0
 
 def test_foliage_no_nlcd_constant_terminal():
-    # --no-nlcd: both ends use foliage_height as terminal depth
+    # --no-nlcd: constant 2 * foliage_height terminal depth
     a = node("A", 41.90, -74.10)
     b = node("B", 41.91, -74.10)
     with patch.object(L, "fetch_elevations", side_effect=flat_terrain):
         result = L.analyze_link(a, b, forest_db_per_m=0.3, foliage_height=30.0, use_nlcd=False)
-    # (30 + 30) * 0.3 = 18 dB
+    # 2 * 30 * 0.3 = 18 dB
     assert abs(result["foliage_db"] - 18.0) < 0.001
     assert "const" in result["foliage_src"]
 
 def test_foliage_kml_override_bypasses_nlcd():
-    # KML foliage_depth on both nodes → path walk skipped entirely
+    # KML foliage_depth on both nodes → NLCD path walk skipped
     a = node("A", 41.90, -74.10, attrs={"foliage_depth": "20"})
     b = node("B", 41.91, -74.10, attrs={"foliage_depth": "10"})
     result = analyze(a, b, nlcd_class=41, forest_db_per_m=0.3)
@@ -191,48 +191,22 @@ def test_foliage_kml_override_bypasses_nlcd():
     assert abs(result["foliage_db"] - 9.0) < 0.001
     assert "KML" in result["foliage_src"]
 
-def test_foliage_kml_one_end_open_other_forest():
-    # One end open (KML=0), other end NLCD forest → only B end contributes
-    a = node("A", 41.90, -74.10, attrs={"foliage_depth": "0"})
-    b = node("B", 41.91, -74.10)  # NLCD will return forest
-
-    # Terrain drops sharply away from B so LOS rises above canopy quickly (5 samples)
-    def terrain_drop_near_b(pts):
-        elev = [100.0] * len(pts)
-        n = len(pts)
-        for i in range(max(0, n - 6), n):
-            elev[i] = 100.0 - (n - i) * 8.0
-        return elev
-
-    with patch.object(L, "fetch_elevations", side_effect=terrain_drop_near_b), \
-         patch.object(L, "nlcd_class_at", return_value=41):  # deciduous forest
-        result = L.analyze_link(a, b, forest_db_per_m=0.3, foliage_height=30.0)
-
-    assert result["foliage_src"].startswith("KML:0m")
-    # B end has some positive terminal depth
-    assert result["foliage_db"] >= 0.0
-
-def test_foliage_walk_stops_at_open_land():
-    # Walk from forest node: first samples forest (41), then open (71) → walk stops early
+def test_foliage_open_path_is_zero():
+    # All samples NLCD:71 (grassland, mult=0) → no foliage regardless of LOS height
     a = node("A", 41.90, -74.10)
     b = node("B", 41.91, -74.10)
+    result = analyze(a, b, nlcd_class=71, forest_db_per_m=0.3, default_antenna_height=3.0)
+    assert result["foliage_db"] == 0.0
 
-    call_count = 0
-    def nlcd_forest_then_open(lat, lon):
-        nonlocal call_count
-        call_count += 1
-        # First 3 calls from each end: forest; then open
-        return 41 if call_count <= 3 else 71
-
-    with patch.object(L, "fetch_elevations", side_effect=flat_terrain), \
-         patch.object(L, "nlcd_class_at", side_effect=nlcd_forest_then_open):
-        result = L.analyze_link(a, b, forest_db_per_m=0.3, foliage_height=30.0,
-                                default_antenna_height=3.0)
-
-    # Walk stops as soon as open land is hit — foliage is bounded, not full path
-    assert result["foliage_db"] < L.free_space_path_loss(
-        L.haversine(a["lat"], a["lon"], b["lat"], b["lon"]), 915.0
-    )
+def test_foliage_full_path_forest_counts_low_segments():
+    # Full-path forest (NLCD:41) with low LOS → foliage > 0
+    # Tall antennas so LOS is above canopy → foliage = 0
+    a = node("A", 41.90, -74.10)
+    b = node("B", 41.91, -74.10)
+    low  = analyze(a, b, nlcd_class=41, forest_db_per_m=0.3, default_antenna_height=3.0)
+    high = analyze(a, b, nlcd_class=41, forest_db_per_m=0.3, default_antenna_height=50.0)
+    assert low["foliage_db"] > 0.0
+    assert high["foliage_db"] == 0.0  # LOS 50m above ground, above any canopy
 
 
 # ----------------------------------------------------------------

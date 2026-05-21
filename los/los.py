@@ -348,57 +348,38 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
     v              = worst_geo_excess * math.sqrt(2 * (worst_d1 + worst_d2) / (wavelength * worst_d1 * worst_d2))
     diffraction_db = knife_edge_loss(v)
 
-    def _terminal_depth(start: int, step: int) -> tuple[float, int]:
-        """Walk from a node endpoint outward, accumulating forested meters until
-        the LOS rises above the canopy or reaches open land.  Returns (meters, fetches)."""
-        meters = 0.0
-        fetches = 0
-        for idx in range(start, samples if step > 0 else 0, step):
-            los_h_i = h1 + (h2 - h1) * (idx / samples)
-            los_above = los_h_i - terrain[idx]
-            lat_i, lon_i = sample_points[idx]
-            if use_nlcd:
-                key = f"{lat_i:.4f},{lon_i:.4f}"
-                cached = key in _nlcd_cache
-                cls = nlcd_class_at(lat_i, lon_i)
-                if not cached:
-                    fetches += 1
-                canopy_ht = _NLCD_CANOPY_HEIGHT.get(cls, 0.0) if cls is not None else foliage_height
-                mult      = _NLCD_FOLIAGE_MULT.get(cls, 0.0) if cls is not None else 1.0
-                threshold = min(foliage_height, canopy_ht) if cls is not None else foliage_height
-            else:
-                mult = 1.0
-                threshold = foliage_height
-            if mult > 0 and los_above < threshold:
-                meters += actual_spacing * mult
-            else:
-                break  # LOS cleared canopy or reached open land
-        return meters, fetches
-
-    # KML foliage_depth override bypasses path walk; --no-nlcd uses constant terminal depth
-    if "foliage_depth" in a["attrs"]:
-        depth_a, fa = float(a["attrs"]["foliage_depth"]), 0
-        src_a = "KML"
-    elif use_nlcd:
-        depth_a, fa = _terminal_depth(1, 1)
-        src_a = "path"
+    # Foliage: integrate forested meters along the full LOS where the beam is
+    # within the canopy.  KML foliage_depth overrides; --no-nlcd uses constant
+    # terminal depth at each end.
+    if "foliage_depth" in a["attrs"] or "foliage_depth" in b["attrs"]:
+        depth_a = float(a["attrs"].get("foliage_depth", foliage_height))
+        depth_b = float(b["attrs"].get("foliage_depth", foliage_height))
+        foliage_db  = (depth_a + depth_b) * forest_db_per_m
+        foliage_src = f"KML:{depth_a:.0f}m+KML:{depth_b:.0f}m"
+        nlcd_fetches = 0
+    elif not use_nlcd:
+        foliage_db   = 2 * foliage_height * forest_db_per_m
+        foliage_src  = f"const:{foliage_height:.0f}m+const:{foliage_height:.0f}m"
+        nlcd_fetches = 0
     else:
-        depth_a, fa = foliage_height, 0
-        src_a = "const"
-
-    if "foliage_depth" in b["attrs"]:
-        depth_b, fb = float(b["attrs"]["foliage_depth"]), 0
-        src_b = "KML"
-    elif use_nlcd:
-        depth_b, fb = _terminal_depth(samples - 1, -1)
-        src_b = "path"
-    else:
-        depth_b, fb = foliage_height, 0
-        src_b = "const"
-
-    nlcd_fetches = fa + fb
-    foliage_db   = (depth_a + depth_b) * forest_db_per_m
-    foliage_src  = f"{src_a}:{depth_a:.0f}m+{src_b}:{depth_b:.0f}m"
+        foliage_meters = 0.0
+        nlcd_fetches   = 0
+        for i in range(1, samples):
+            los_h_i  = h1 + (h2 - h1) * (i / samples)
+            above    = los_h_i - terrain[i]
+            lat_i, lon_i = sample_points[i]
+            key      = f"{lat_i:.4f},{lon_i:.4f}"
+            cached   = key in _nlcd_cache
+            cls      = nlcd_class_at(lat_i, lon_i)
+            if not cached:
+                nlcd_fetches += 1
+            canopy_ht = _NLCD_CANOPY_HEIGHT.get(cls, 0.0) if cls is not None else foliage_height
+            mult      = _NLCD_FOLIAGE_MULT.get(cls, 0.0) if cls is not None else 1.0
+            threshold = min(foliage_height, canopy_ht) if cls is not None else foliage_height
+            if mult > 0 and 0 <= above < threshold:
+                foliage_meters += actual_spacing * mult
+        foliage_db  = foliage_meters * forest_db_per_m
+        foliage_src = f"path:{foliage_meters:.0f}m"
 
     return {
         "distance_km":     total_distance / 1000.0,
