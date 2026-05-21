@@ -87,6 +87,37 @@ def test_fspl_increases_with_frequency():
 
 
 # ----------------------------------------------------------------
+# foliage_loss — ITU-R P.833 saturation model
+# ----------------------------------------------------------------
+
+def test_foliage_loss_zero():
+    assert L.foliage_loss(0, 0.3, 20.0) == 0.0
+    assert L.foliage_loss(100, 0.0, 20.0) == 0.0
+
+def test_foliage_loss_short_path_linear():
+    # For small d, foliage_loss ≈ d * db_per_m (within 5% relative at 5m)
+    d = 5.0
+    linear = d * 0.3
+    saturated = L.foliage_loss(d, 0.3, 20.0)
+    assert abs(saturated - linear) / linear < 0.05
+
+def test_foliage_loss_saturates():
+    # Very long paths saturate at max_db
+    assert L.foliage_loss(10000, 0.3, 20.0) > 19.9
+    assert L.foliage_loss(10000, 0.3, 20.0) <= 20.0
+
+def test_foliage_loss_monotone():
+    vals = [L.foliage_loss(d, 0.3, 20.0) for d in [0, 10, 50, 100, 300, 1000]]
+    assert vals == sorted(vals)
+
+def test_foliage_loss_known_value():
+    # 512m at 0.3 dB/m, max 20 dB → nearly saturated
+    result = L.foliage_loss(512, 0.3, 20.0)
+    assert result > 19.9
+    assert result < 20.0
+
+
+# ----------------------------------------------------------------
 # link_budget
 # ----------------------------------------------------------------
 
@@ -173,22 +204,25 @@ def test_foliage_open_land_is_zero():
     assert result["foliage_db"] == 0.0
 
 def test_foliage_no_nlcd_constant_terminal():
-    # --no-nlcd: constant 2 * foliage_height terminal depth
+    # --no-nlcd: ITU-R P.833 applied to 2 * foliage_height depth
     a = node("A", 41.90, -74.10)
     b = node("B", 41.91, -74.10)
     with patch.object(L, "fetch_elevations", side_effect=flat_terrain):
-        result = L.analyze_link(a, b, forest_db_per_m=0.3, foliage_height=30.0, use_nlcd=False)
-    # 2 * 30 * 0.3 = 18 dB
-    assert abs(result["foliage_db"] - 18.0) < 0.001
+        result = L.analyze_link(a, b, forest_db_per_m=0.3, foliage_height=30.0,
+                                foliage_max_db=20.0, use_nlcd=False)
+    # foliage_loss(60m, 0.3, 20) = 20*(1-exp(-0.9)) ≈ 11.87 dB
+    expected = L.foliage_loss(60.0, 0.3, 20.0)
+    assert abs(result["foliage_db"] - expected) < 0.001
     assert "const" in result["foliage_src"]
 
 def test_foliage_kml_override_bypasses_nlcd():
     # KML foliage_depth on both nodes → NLCD path walk skipped
     a = node("A", 41.90, -74.10, attrs={"foliage_depth": "20"})
     b = node("B", 41.91, -74.10, attrs={"foliage_depth": "10"})
-    result = analyze(a, b, nlcd_class=41, forest_db_per_m=0.3)
-    # (20 + 10) * 0.3 = 9.0 dB
-    assert abs(result["foliage_db"] - 9.0) < 0.001
+    result = analyze(a, b, nlcd_class=41, forest_db_per_m=0.3, foliage_max_db=20.0)
+    # foliage_loss(30m, 0.3, 20) = 20*(1-exp(-0.45)) ≈ 7.25 dB
+    expected = L.foliage_loss(30.0, 0.3, 20.0)
+    assert abs(result["foliage_db"] - expected) < 0.001
     assert "KML" in result["foliage_src"]
 
 def test_foliage_open_path_is_zero():

@@ -49,6 +49,17 @@ def knife_edge_loss(v):
         return -20 * math.log10(0.225 / v)
 
 
+def foliage_loss(meters: float, db_per_m: float, max_db: float) -> float:
+    """ITU-R P.833 maximum excess attenuation model.
+
+    Matches the linear model for short paths; saturates at max_db for long ones.
+    At 915 MHz through deciduous forest: db_per_m≈0.3, max_db≈20 dB.
+    """
+    if meters <= 0 or db_per_m <= 0 or max_db <= 0:
+        return 0.0
+    return max_db * (1.0 - math.exp(-meters * db_per_m / max_db))
+
+
 def link_budget(distance_m, freq_mhz, tx_dbm, rx_sensitivity_dbm, foliage_db, diffraction_db):
     fspl   = free_space_path_loss(distance_m, freq_mhz)
     margin = (tx_dbm - rx_sensitivity_dbm) - fspl - foliage_db - diffraction_db
@@ -305,7 +316,7 @@ def fetch_elevations(samples):
 # ------------------------------------------------------------
 
 def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_height=3.0,
-                 forest_db_per_m=0.3, use_nlcd=True, foliage_height=30.0):
+                 forest_db_per_m=0.3, foliage_max_db=20.0, use_nlcd=True, foliage_height=30.0):
     h_a        = float(a["attrs"].get("antenna_height", default_antenna_height))
     h_b        = float(b["attrs"].get("antenna_height", default_antenna_height))
     wavelength = 299792458.0 / (freq_mhz * 1e6)
@@ -354,11 +365,11 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
     if "foliage_depth" in a["attrs"] or "foliage_depth" in b["attrs"]:
         depth_a = float(a["attrs"].get("foliage_depth", foliage_height))
         depth_b = float(b["attrs"].get("foliage_depth", foliage_height))
-        foliage_db  = (depth_a + depth_b) * forest_db_per_m
+        foliage_db  = foliage_loss(depth_a + depth_b, forest_db_per_m, foliage_max_db)
         foliage_src = f"KML:{depth_a:.0f}m+KML:{depth_b:.0f}m"
         nlcd_fetches = 0
     elif not use_nlcd:
-        foliage_db   = 2 * foliage_height * forest_db_per_m
+        foliage_db   = foliage_loss(2 * foliage_height, forest_db_per_m, foliage_max_db)
         foliage_src  = f"const:{foliage_height:.0f}m+const:{foliage_height:.0f}m"
         nlcd_fetches = 0
     else:
@@ -378,7 +389,7 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
             threshold = min(foliage_height, canopy_ht) if cls is not None else foliage_height
             if mult > 0 and 0 <= above < threshold:
                 foliage_meters += actual_spacing * mult
-        foliage_db  = foliage_meters * forest_db_per_m
+        foliage_db  = foliage_loss(foliage_meters, forest_db_per_m, foliage_max_db)
         foliage_src = f"path:{foliage_meters:.0f}m"
 
     return {
@@ -450,6 +461,7 @@ def cmd_analyze(args):
                               sample_distance=args.sample_distance,
                               default_antenna_height=args.antenna_height,
                               forest_db_per_m=args.forest_db_per_m,
+                              foliage_max_db=args.foliage_max_db,
                               use_nlcd=not args.no_nlcd,
                               foliage_height=args.foliage_height)
 
@@ -540,6 +552,8 @@ def main():
     p_a.add_argument("--tx-power",             type=float, default=28.0,   metavar="DBM")
     p_a.add_argument("--rx-sensitivity",       type=float, default=-148.0, metavar="DBM")
     p_a.add_argument("--forest-db-per-m",      type=float, default=0.3,    metavar="DB/M")
+    p_a.add_argument("--foliage-max-db",       type=float, default=20.0,   metavar="DB",
+                     help="ITU-R P.833 saturation limit for vegetation loss (default: 20 dB at 915 MHz)")
     p_a.add_argument("--forest-terminal-depth",type=float, default=30.0,   metavar="M")
     p_a.add_argument("--fade-margin",          type=float, default=10.0,   metavar="DB",
                      help="required reliability margin in dB for OK status (default: 10)")
