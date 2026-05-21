@@ -146,18 +146,29 @@ Worst-case stack ~30 dB, so 38 dB is reliable but worth a field RSSI check on th
 Water Plant → Golf Course Well path specifically, as its diffraction model is
 sensitive to small terrain errors (36 m obstruction depth).
 
-**Mesh flood behavior:**
+**Mesh flood behavior and hop count:**
 
 Meshtastic uses managed flood with duplicate suppression (not spanning tree). Each
-packet is rebroadcast once per node; duplicates are dropped by packet ID. With 9
-nodes having strong mutual visibility, a single transmission generates 4–6
-rebroadcasts — the gateway receives the packet via multiple paths, improving
-reliability. The hub sees one MQTT delivery regardless.
+packet is rebroadcast once per node; duplicates are dropped by packet ID. There is
+no production-ready distance-vector or link-state protocol available yet.
 
-At SF12, each packet occupies ~1–2 s of airtime. With low-frequency sensor
-reporting (readings every few seconds per node) this is negligible, but sensor
-report intervals should be staggered across nodes to avoid simultaneous
-transmissions causing collisions.
+With strong mutual visibility across all deployed nodes, a single transmission
+generates several rebroadcasts — the gateway receives the packet via multiple paths,
+improving reliability. The hub sees one MQTT delivery regardless.
+
+**Hop count:** Leave at the default of 3 for initial deployment. Given the link
+margins, all nodes can reach the gateway in 1 hop under normal conditions; 2 hops
+covers any single-node failure. Reduce to 2 hops only if congestion symptoms appear
+(missed packets, retries).
+
+**Node count:** The KML analysis included extra nodes added for LOS coverage
+evaluation. Fewer deployed nodes means fewer rebroadcasts per packet and lower
+channel occupancy — prefer a minimal node count that maintains mesh connectivity.
+
+**Airtime:** At SF12, each packet occupies ~1–2 s. If congestion becomes an issue,
+dropping to SF10 or SF9 (after confirming RSSI in the field) cuts airtime 4–8×,
+which is more effective than reducing hop count. Stagger sensor report intervals
+across nodes to avoid simultaneous transmissions.
 
 ## Status
 
