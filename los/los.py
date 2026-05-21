@@ -24,6 +24,7 @@ Optional:
 """
 
 import argparse
+import json
 import math
 import itertools
 import os
@@ -32,6 +33,31 @@ import requests
 import xml.etree.ElementTree as ET
 
 EARTH_RADIUS = 6371000.0
+
+
+# ------------------------------------------------------------
+# RF link budget
+# ------------------------------------------------------------
+
+def free_space_path_loss(distance_m, freq_mhz):
+    """FSPL in dB."""
+    return 20 * math.log10(distance_m) + 20 * math.log10(freq_mhz * 1e6) - 147.55
+
+
+def link_budget(distance_m, freq_mhz, tx_dbm, rx_sensitivity_dbm,
+                forest_db_per_m, forest_terminal_depth_m):
+    fspl      = free_space_path_loss(distance_m, freq_mhz)
+    # Foliage loss applies at both terminals (signal punches through canopy
+    # at each end); path between endpoints travels mostly through air.
+    foliage   = 2 * forest_db_per_m * forest_terminal_depth_m
+    available = tx_dbm - rx_sensitivity_dbm
+    margin    = available - fspl - foliage
+    return {
+        "fspl_db":      fspl,
+        "foliage_db":   foliage,
+        "available_db": available,
+        "margin_db":    margin,
+    }
 
 
 # ------------------------------------------------------------
@@ -127,6 +153,26 @@ def parse_kml(path):
 # Terrain elevation
 # ------------------------------------------------------------
 
+CACHE_FILE = os.path.join(os.path.dirname(__file__), "elevation_cache.json")
+_elev_cache: dict = {}
+
+
+def _cache_key(lat, lon):
+    return f"{lat:.6f},{lon:.6f}"
+
+
+def load_cache():
+    global _elev_cache
+    if os.path.exists(CACHE_FILE):
+        with open(CACHE_FILE) as f:
+            _elev_cache = json.load(f)
+
+
+def save_cache():
+    with open(CACHE_FILE, "w") as f:
+        json.dump(_elev_cache, f)
+
+
 def fetch_elevations(samples, batch_size=100):
     """
     samples:
@@ -136,22 +182,36 @@ def fetch_elevations(samples, batch_size=100):
         [elev_meters]
     """
 
-    elevations = []
+    elevations: list[float] = [0.0] * len(samples)
+    need_fetch  = []
 
-    for i in range(0, len(samples), batch_size):
-        batch = samples[i:i + batch_size]
-        coords = "|".join(f"{lat},{lon}" for lat, lon in batch)
-        url = (
-            "https://api.opentopodata.org/v1/ned10m"
-            f"?locations={coords}"
-        )
-        time.sleep(1.2)
-        r = requests.get(url)
-        r.raise_for_status()
-        elevations += [
-            item["elevation"] if item["elevation"] is not None else 0
-            for item in r.json()["results"]
-        ]
+    for i, (lat, lon) in enumerate(samples):
+        key = _cache_key(lat, lon)
+        if key in _elev_cache:
+            elevations[i] = _elev_cache[key]
+        else:
+            need_fetch.append((i, lat, lon))
+
+    if need_fetch:
+        fetched = []
+        for batch_start in range(0, len(need_fetch), batch_size):
+            batch = need_fetch[batch_start:batch_start + batch_size]
+            coords = "|".join(f"{lat},{lon}" for _, lat, lon in batch)
+            url = f"https://api.opentopodata.org/v1/ned10m?locations={coords}"
+            time.sleep(1.2)
+            r = requests.get(url)
+            r.raise_for_status()
+            fetched += [
+                item["elevation"] if item["elevation"] is not None else 0
+                for item in r.json()["results"]
+            ]
+
+        for (i, lat, lon), elev in zip(need_fetch, fetched):
+            key = _cache_key(lat, lon)
+            _elev_cache[key] = elev
+            elevations[i] = elev
+
+        save_cache()
 
     return elevations
 
@@ -263,13 +323,58 @@ def main():
         help="clearance below 0 still considered marginal (default: 2)",
     )
 
+    parser.add_argument(
+        "--tx-power",
+        type=float,
+        default=28.0,
+        metavar="DBM",
+        help="transmitter power in dBm (default: 28 — Heltec V4)",
+    )
+
+    parser.add_argument(
+        "--rx-sensitivity",
+        type=float,
+        default=-148.0,
+        metavar="DBM",
+        help="receiver sensitivity in dBm (default: -148 — SX1262 SF12)",
+    )
+
+    parser.add_argument(
+        "--forest-db-per-m",
+        type=float,
+        default=0.3,
+        metavar="DB_PER_M",
+        help="foliage attenuation dB/meter through canopy (default: 0.3)",
+    )
+
+    parser.add_argument(
+        "--forest-terminal-depth",
+        type=float,
+        default=30.0,
+        metavar="METERS",
+        help="estimated canopy depth at each terminal in meters (default: 30)",
+    )
+
     args = parser.parse_args()
+
+    load_cache()
 
     points = parse_kml(args.kml)
 
+    available_db = args.tx_power - args.rx_sensitivity
+
     print()
-    print("LoRa LOS / Fresnel Analysis")
+    print("LoRa LOS / Fresnel + Link Budget Analysis")
+    print(f"  TX {args.tx_power:.0f} dBm  |  RX sensitivity {args.rx_sensitivity:.0f} dBm  "
+          f"|  Budget {available_db:.0f} dB  |  Forest {args.forest_db_per_m} dB/m  "
+          f"|  Antenna ht {args.antenna_height:.0f} m")
     print()
+    foliage_db = 2 * args.forest_db_per_m * args.forest_terminal_depth
+    print(f"  Foliage: {args.forest_db_per_m} dB/m × {args.forest_terminal_depth:.0f}m × 2 terminals = {foliage_db:.1f} dB (constant)")
+    print()
+    print(f"{'Link':<43} {'Dist':>6}  {'Terrain':8}  {'MinClr':>7}  "
+          f"{'FSPL':>6}  {'Foliage':>7}  {'Margin':>7}  {'RF':8}")
+    print("-" * 105)
 
     for a, b in itertools.combinations(points, 2):
 
@@ -281,21 +386,35 @@ def main():
             sample_distance=args.sample_distance,
         )
 
+        rf = link_budget(
+            result["distance_km"] * 1000,
+            args.freq_mhz,
+            args.tx_power,
+            args.rx_sensitivity,
+            args.forest_db_per_m,
+            args.forest_terminal_depth,
+        )
+
         clr = result["min_clearance_m"]
         if clr >= 0:
-            status = "CLEAR"
+            terrain_status = "CLEAR"
         elif clr >= -args.marginal_threshold:
-            status = "MARGINAL"
+            terrain_status = "MARGINAL"
         else:
-            status = "BLOCKED"
+            terrain_status = "BLOCKED"
 
+        rf_status = "OK" if rf["margin_db"] >= 0 else "MARGINAL" if rf["margin_db"] >= -10 else "FAIL"
+
+        link_label = f"{a['name']} -> {b['name']}"
         print(
-            f"{a['name']:20s} -> "
-            f"{b['name']:20s} | "
-            f"{result['distance_km']:6.2f} km | "
-            f"{result['samples']:4d} pts | "
-            f"{status:8s} | "
-            f"MinClr {result['min_clearance_m']:7.2f} m"
+            f"{link_label:<43} "
+            f"{result['distance_km']:6.2f}km  "
+            f"{terrain_status:8s}  "
+            f"{clr:7.2f}m  "
+            f"{rf['fspl_db']:6.1f}dB  "
+            f"{rf['foliage_db']:7.1f}dB  "
+            f"{rf['margin_db']:7.1f}dB  "
+            f"{rf_status}"
         )
 
 
