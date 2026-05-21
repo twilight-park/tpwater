@@ -153,8 +153,25 @@ diffraction.
 - TX: 28 dBm (onboard PA over SX1262 native 22 dBm)
 - RX sensitivity: −148 dBm (SX1262 at SF12)
 - Link budget: 176 dB
-- Foliage model: 0.3 dB/m × 30m terminal depth × 2 ends = 18 dB (constant)
 - Diffraction: ITU-R P.526 knife-edge at worst obstruction point
+- Foliage: ITU-R P.833-10 maximum excess attenuation model (see below)
+
+**Foliage loss model (ITU-R P.833-10):**
+
+```
+A_v = A_m × (1 − exp(−d × γ / A_m))
+```
+
+Where `d` = meters of path where LOS is above terrain but within canopy height, `γ` = specific attenuation (dB/m), `A_m` = saturation limit (dB).
+
+Defaults used: γ = 0.3 dB/m, A_m = 26.5 dB.
+
+- **Formula source:** ITU-R P.833-10 (2021), Annex 1, Section 3 — "Maximum excess attenuation model for terrestrial paths through woodland."
+- **A_m = 26.5 dB:** From P.833-10 tabulated measurement at 949 MHz (closest published frequency to 915 MHz). Tropical-tree formula from P.833-3 gives A_m = 0.18 × f^0.752 ≈ 30 dB at 915 MHz, consistent.
+- **γ = 0.3 dB/m:** Within the documented 0.2–0.5 dB/m range for deciduous forest at 900 MHz (P.833-9). Slightly higher than the 0.17 dB/m measured in P.833-10 because those measurements used a 25 m TX antenna above the canopy; our 3 m antenna-within-canopy geometry is a worse case.
+- **Saturation behavior:** At 75 m of forest: ~15 dB. At 225 m: ~24 dB. Beyond ~150 m the signal finds diffuse scattering paths and attenuation rate drops — modeled by exponential saturation rather than linear accumulation.
+- **NLCD integration:** Path segments are only counted as foliage where `0 ≤ LOS_above_terrain < canopy_height`. Terrain-blocked segments are handled exclusively by knife-edge diffraction to avoid double-counting.
+- **Empirical LoRa data:** Measured excess loss in hilly forested terrain at 920 MHz reached 40–52 dB above FSPL (includes diffraction); our separate diffraction + foliage model is consistent with this range.
 
 **Usage:**
 ```bash
@@ -169,11 +186,11 @@ Antenna heights stored as `<ExtendedData>` in the KML file; fall back to
 
 Elevation responses cached in `los/elevation_cache.json` — subsequent runs are instant.
 
-**Site findings (TWP-LOS.kml, 9 nodes):**
+**Site findings (TWP-LOS.kml, 6 active nodes):**
 
-All 9 nodes form a single connected mesh at SF12 with the Heltec V4.
-Minimum margin across all links: ~38 dB (Water Plant → Golf Course Well, 1.36 km,
-36 m Fresnel obstruction, 25 dB knife-edge loss). Most links are 55–90 dB.
+All 6 nodes form a single connected mesh at SF12 with the Heltec V4.
+Minimum margin across all links: ~37 dB (Golf Course Well → Spring Cottage, 0.67 km,
+20 dB knife-edge + 25 dB foliage). Most links are 43–95 dB.
 
 **Link reliability by margin:**
 
