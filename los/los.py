@@ -189,7 +189,20 @@ def save_cache():
         json.dump(_elev_cache, f)
 
 
-def fetch_elevations(samples, batch_size=100):
+EPQS_URL = "https://epqs.nationalmap.gov/v1/json"
+EPQS_SENTINEL = -1000000  # returned for points outside coverage
+
+
+def _epqs_fetch_one(lat, lon):
+    r = requests.get(EPQS_URL, params={"x": lon, "y": lat, "units": "Meters", "wkid": "4326"})
+    r.raise_for_status()
+    val = r.json().get("value")
+    if val is None or float(val) <= EPQS_SENTINEL:
+        return 0.0
+    return float(val)
+
+
+def fetch_elevations(samples):
     elevations: list[float] = [0.0] * len(samples)
     need_fetch = []
 
@@ -201,22 +214,15 @@ def fetch_elevations(samples, batch_size=100):
             need_fetch.append((i, lat, lon))
 
     if need_fetch:
-        fetched = []
-        for batch_start in range(0, len(need_fetch), batch_size):
-            batch  = need_fetch[batch_start:batch_start + batch_size]
-            coords = "|".join(f"{lat},{lon}" for _, lat, lon in batch)
-            time.sleep(1.2)
-            r = requests.get(f"https://api.opentopodata.org/v1/ned10m?locations={coords}")
-            r.raise_for_status()
-            fetched += [
-                item["elevation"] if item["elevation"] is not None else 0.0
-                for item in r.json()["results"]
-            ]
-
-        for (i, lat, lon), elev in zip(need_fetch, fetched):
+        print(f"    fetching {len(need_fetch)} elevations from USGS EPQS...", flush=True)
+        for count, (i, lat, lon) in enumerate(need_fetch, 1):
+            time.sleep(0.05)
+            elev = _epqs_fetch_one(lat, lon)
             _elev_cache[_cache_key(lat, lon)] = elev
             elevations[i] = elev
-
+            if count % 100 == 0:
+                save_cache()
+                print(f"      {count}/{len(need_fetch)}", flush=True)
         save_cache()
 
     return elevations
@@ -297,6 +303,14 @@ def cmd_set(args):
     print(f"Set {args.name!r}: {args.key} = {args.value}  ({args.kml})")
 
 
+def _tab_table(headers: list[str], rows: list[list[str]]):
+    """Print a Starbase-format tab table: header, dashes separator, data rows."""
+    print("\t".join(headers))
+    print("\t".join("-" * len(h) for h in headers))
+    for row in rows:
+        print("\t".join(row))
+
+
 def cmd_analyze(args):
     load_cache()
     points = parse_kml(args.kml)
@@ -309,14 +323,12 @@ def cmd_analyze(args):
     print(f"  TX {args.tx_power:.0f} dBm  |  RX {args.rx_sensitivity:.0f} dBm  "
           f"|  Budget {available_db:.0f} dB  |  Forest {args.forest_db_per_m} dB/m  "
           f"|  Default antenna ht {args.antenna_height:.0f} m")
-    print(f"  Foliage: {args.forest_db_per_m} dB/m × {args.forest_terminal_depth:.0f}m "
-          f"× 2 terminals = {foliage_db:.1f} dB  |  Fade margin {args.fade_margin:.0f} dB")
+    print(f"  Foliage: {args.forest_db_per_m} dB/m x {args.forest_terminal_depth:.0f}m "
+          f"x 2 terminals = {foliage_db:.1f} dB  |  Fade margin {args.fade_margin:.0f} dB")
     print()
-    print(f"{'Link':<43} {'Dist':>6}  {'Ant':>7}  {'MinClr':>7}  "
-          f"{'Diffr':>6}  {'Foliage':>7}  {'FSPL':>6}  {'Margin':>7}  Status")
-    print("-" * 118)
 
     reachable: dict[str, set[str]] = {p["name"]: set() for p in points}
+    rows: list[list[str]] = []
 
     for a, b in itertools.combinations(points, 2):
         result = analyze_link(a, b,
@@ -324,10 +336,10 @@ def cmd_analyze(args):
                               sample_distance=args.sample_distance,
                               default_antenna_height=args.antenna_height)
 
-        rf  = link_budget(result["distance_km"] * 1000, args.freq_mhz,
-                          args.tx_power, args.rx_sensitivity,
-                          args.forest_db_per_m, args.forest_terminal_depth,
-                          result["diffraction_db"])
+        rf     = link_budget(result["distance_km"] * 1000, args.freq_mhz,
+                             args.tx_power, args.rx_sensitivity,
+                             args.forest_db_per_m, args.forest_terminal_depth,
+                             result["diffraction_db"])
 
         margin = rf["margin_db"]
         status = "OK" if margin >= args.fade_margin else "MARGINAL" if margin >= 0 else "FAIL"
@@ -336,20 +348,19 @@ def cmd_analyze(args):
             reachable[a["name"]].add(b["name"])
             reachable[b["name"]].add(a["name"])
 
-        ant_str  = f"{result['antenna_a']:.0f}/{result['antenna_b']:.0f}m"
-        clr      = result["min_clearance_m"]
-        diff_db  = result["diffraction_db"]
-        print(
-            f"{a['name']} -> {b['name']:<{43 - len(a['name']) - 4}} "
-            f"{result['distance_km']:6.2f}km  "
-            f"{ant_str:>7}  "
-            f"{clr:7.2f}m  "
-            f"{diff_db:6.1f}dB  "
-            f"{rf['foliage_db']:7.1f}dB  "
-            f"{rf['fspl_db']:6.1f}dB  "
-            f"{margin:7.1f}dB  "
-            f"{status}"
-        )
+        rows.append([
+            f"{a['name']} -> {b['name']}",
+            f"{result['distance_km']:.2f}km",
+            f"{result['antenna_a']:.0f}/{result['antenna_b']:.0f}m",
+            f"{result['min_clearance_m']:.1f}m",
+            f"{result['diffraction_db']:.1f}dB",
+            f"{rf['foliage_db']:.1f}dB",
+            f"{rf['fspl_db']:.1f}dB",
+            f"{margin:.1f}dB",
+            status,
+        ])
+
+    _tab_table(["Link", "Dist", "Ant", "MinClr", "Diffr", "Foliage", "FSPL", "Margin", "Status"], rows)
 
     # connected components via BFS
     seen       = set()
