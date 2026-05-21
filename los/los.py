@@ -35,12 +35,25 @@ def free_space_path_loss(distance_m, freq_mhz):
     return 20 * math.log10(distance_m) + 20 * math.log10(freq_mhz * 1e6) - 147.55
 
 
+def knife_edge_loss(v):
+    """ITU-R P.526 knife-edge diffraction loss in dB. 0 for clear paths (v <= -1)."""
+    if v <= -1:
+        return 0.0
+    elif v <= 0:
+        return 20 * math.log10(0.5 - 0.62 * v)
+    elif v <= 1:
+        return 20 * math.log10(0.5 * math.exp(-0.95 * v))
+    elif v <= 2.4:
+        return 20 * math.log10(0.4 - math.sqrt(max(0.0, 0.1184 - (0.38 - 0.1 * v) ** 2)))
+    else:
+        return 20 * math.log10(0.225 / v)
+
+
 def link_budget(distance_m, freq_mhz, tx_dbm, rx_sensitivity_dbm,
-                forest_db_per_m, forest_terminal_depth_m):
-    fspl     = free_space_path_loss(distance_m, freq_mhz)
-    # Foliage applied at both terminals; mid-path travels mostly through air.
-    foliage  = 2 * forest_db_per_m * forest_terminal_depth_m
-    margin   = (tx_dbm - rx_sensitivity_dbm) - fspl - foliage
+                forest_db_per_m, forest_terminal_depth_m, diffraction_db):
+    fspl    = free_space_path_loss(distance_m, freq_mhz)
+    foliage = 2 * forest_db_per_m * forest_terminal_depth_m
+    margin  = (tx_dbm - rx_sensitivity_dbm) - fspl - foliage - diffraction_db
     return {"fspl_db": fspl, "foliage_db": foliage, "margin_db": margin}
 
 
@@ -214,8 +227,9 @@ def fetch_elevations(samples, batch_size=100):
 # ------------------------------------------------------------
 
 def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_height=3.0):
-    h_a = float(a["attrs"].get("antenna_height", default_antenna_height))
-    h_b = float(b["attrs"].get("antenna_height", default_antenna_height))
+    h_a        = float(a["attrs"].get("antenna_height", default_antenna_height))
+    h_b        = float(b["attrs"].get("antenna_height", default_antenna_height))
+    wavelength = 299792458.0 / (freq_mhz * 1e6)
 
     total_distance = haversine(a["lat"], a["lon"], b["lat"], b["lon"])
     samples = max(2, int(total_distance / sample_distance))
@@ -231,27 +245,36 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
     h2 = terrain[-1] + h_b
 
     min_clearance = float("inf")
-    obstructed    = False
+    worst_d1 = total_distance / 2
+    worst_d2 = total_distance / 2
+    worst_geo_excess = 0.0   # terrain + curvature - los_h at worst point
 
     for i in range(1, samples):
         d1 = total_distance * (i / samples)
         d2 = total_distance - d1
 
-        los_h    = h1 + (h2 - h1) * (d1 / total_distance)
-        required = terrain[i] + earth_curvature_bulge(d1, d2) + 0.6 * fresnel_radius(d1, d2, freq_mhz)
-        clearance = los_h - required
+        los_h     = h1 + (h2 - h1) * (d1 / total_distance)
+        curvature = earth_curvature_bulge(d1, d2)
+        fresnel_r = fresnel_radius(d1, d2, freq_mhz)
+        clearance = los_h - terrain[i] - curvature - 0.6 * fresnel_r
 
-        min_clearance = min(min_clearance, clearance)
-        if clearance < 0:
-            obstructed = True
+        if clearance < min_clearance:
+            min_clearance    = clearance
+            worst_d1         = d1
+            worst_d2         = d2
+            worst_geo_excess = terrain[i] + curvature - los_h  # positive = above LOS
+
+    # Knife-edge diffraction at worst obstruction point
+    v              = worst_geo_excess * math.sqrt(2 * (worst_d1 + worst_d2) / (wavelength * worst_d1 * worst_d2))
+    diffraction_db = knife_edge_loss(v)
 
     return {
-        "distance_km":    total_distance / 1000.0,
-        "samples":        samples,
-        "obstructed":     obstructed,
+        "distance_km":     total_distance / 1000.0,
+        "samples":         samples,
         "min_clearance_m": min_clearance,
-        "antenna_a":      h_a,
-        "antenna_b":      h_b,
+        "diffraction_db":  diffraction_db,
+        "antenna_a":       h_a,
+        "antenna_b":       h_b,
     }
 
 
@@ -287,13 +310,12 @@ def cmd_analyze(args):
           f"|  Budget {available_db:.0f} dB  |  Forest {args.forest_db_per_m} dB/m  "
           f"|  Default antenna ht {args.antenna_height:.0f} m")
     print(f"  Foliage: {args.forest_db_per_m} dB/m × {args.forest_terminal_depth:.0f}m "
-          f"× 2 terminals = {foliage_db:.1f} dB (constant)")
+          f"× 2 terminals = {foliage_db:.1f} dB  |  Fade margin {args.fade_margin:.0f} dB")
     print()
-    print(f"{'Link':<43} {'Dist':>6}  {'Ant':>7}  {'Terrain':8}  {'MinClr':>7}  "
-          f"{'FSPL':>6}  {'Foliage':>7}  {'Margin':>7}  RF")
-    print("-" * 115)
+    print(f"{'Link':<43} {'Dist':>6}  {'Ant':>7}  {'MinClr':>7}  "
+          f"{'Diffr':>6}  {'Foliage':>7}  {'FSPL':>6}  {'Margin':>7}  Status")
+    print("-" * 118)
 
-    # adjacency set for connectivity analysis (CLEAR or MARGINAL terrain + OK rf)
     reachable: dict[str, set[str]] = {p["name"]: set() for p in points}
 
     for a, b in itertools.combinations(points, 2):
@@ -304,27 +326,29 @@ def cmd_analyze(args):
 
         rf  = link_budget(result["distance_km"] * 1000, args.freq_mhz,
                           args.tx_power, args.rx_sensitivity,
-                          args.forest_db_per_m, args.forest_terminal_depth)
+                          args.forest_db_per_m, args.forest_terminal_depth,
+                          result["diffraction_db"])
 
-        clr = result["min_clearance_m"]
-        terrain_status = "CLEAR" if clr >= 0 else "MARGINAL" if clr >= -args.marginal_threshold else "BLOCKED"
-        rf_status      = "OK"    if rf["margin_db"] >= 0 else "MARGINAL" if rf["margin_db"] >= -10 else "FAIL"
+        margin = rf["margin_db"]
+        status = "OK" if margin >= args.fade_margin else "MARGINAL" if margin >= 0 else "FAIL"
 
-        if terrain_status in ("CLEAR", "MARGINAL") and rf_status in ("OK", "MARGINAL"):
+        if status in ("OK", "MARGINAL"):
             reachable[a["name"]].add(b["name"])
             reachable[b["name"]].add(a["name"])
 
-        ant_str = f"{result['antenna_a']:.0f}/{result['antenna_b']:.0f}m"
+        ant_str  = f"{result['antenna_a']:.0f}/{result['antenna_b']:.0f}m"
+        clr      = result["min_clearance_m"]
+        diff_db  = result["diffraction_db"]
         print(
             f"{a['name']} -> {b['name']:<{43 - len(a['name']) - 4}} "
             f"{result['distance_km']:6.2f}km  "
             f"{ant_str:>7}  "
-            f"{terrain_status:8s}  "
             f"{clr:7.2f}m  "
-            f"{rf['fspl_db']:6.1f}dB  "
+            f"{diff_db:6.1f}dB  "
             f"{rf['foliage_db']:7.1f}dB  "
-            f"{rf['margin_db']:7.1f}dB  "
-            f"{rf_status}"
+            f"{rf['fspl_db']:6.1f}dB  "
+            f"{margin:7.1f}dB  "
+            f"{status}"
         )
 
     # connected components via BFS
@@ -379,15 +403,16 @@ def main():
 
     # analyze
     p_a = sub.add_parser("analyze", help="run LOS/Fresnel and link budget analysis")
-    p_a.add_argument("--antenna-height",       type=float, default=3.0,    metavar="M",
-                     help="default antenna height in meters (default: 3; overridden per-point by KML extended data)")
+    p_a.add_argument("--antenna-height",        type=float, default=3.0,    metavar="M",
+                     help="default antenna height in meters (overridden per-point by KML extended data)")
     p_a.add_argument("--freq-mhz",             type=float, default=915.0)
     p_a.add_argument("--sample-distance",      type=float, default=5.0,    metavar="M")
-    p_a.add_argument("--marginal-threshold",   type=float, default=2.0,    metavar="M")
     p_a.add_argument("--tx-power",             type=float, default=28.0,   metavar="DBM")
     p_a.add_argument("--rx-sensitivity",       type=float, default=-148.0, metavar="DBM")
     p_a.add_argument("--forest-db-per-m",      type=float, default=0.3,    metavar="DB/M")
     p_a.add_argument("--forest-terminal-depth",type=float, default=30.0,   metavar="M")
+    p_a.add_argument("--fade-margin",          type=float, default=10.0,   metavar="DB",
+                     help="required reliability margin in dB for OK status (default: 10)")
 
     args = parser.parse_args()
     {"list": cmd_list, "set": cmd_set, "analyze": cmd_analyze}[args.cmd](args)
