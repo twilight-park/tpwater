@@ -168,9 +168,17 @@ Uses the ITU-R P.526 knife-edge piecewise approximation at the single worst terr
 
 This correction is applied *only* at the single worst ridge point — not along the entire path. Applying canopy everywhere would double-count with the foliage model for nodes that sit inside a forest canopy with otherwise clear terrain.
 
-**Knife-edge limitation:** The knife-edge model assumes a razor-thin obstacle. Real terrain ridges are wide and rounded, which produces more diffraction loss than knife-edge predicts — typically 3–15 dB additional loss depending on ridge width and curvature. The tool does not implement the ITU-R P.526 rounded obstacle correction (which requires computing terrain radius of curvature). Reported margins should be treated as **optimistic** for rounded-ridge obstructions; validate on-site for any link showing < 50 dB margin with significant terrain diffraction.
+**Rounded-ridge correction:** The knife-edge model assumes a razor-thin obstacle. Real terrain ridges are wide and rounded, which produces more diffraction loss than knife-edge predicts. The tool estimates the terrain radius of curvature R at the worst obstruction point using a 5-sample second-derivative stencil (covering ±25 m of terrain), then applies an empirical penalty interpolated on a log scale:
 
-**Empirical validation:** Office → Golf Course Well is known to fail with conventional 915 MHz radios. The model (with canopy correction) shows 31 dB diffraction + 20 dB foliage + 88 dB FSPL = 139 dB total path loss. Conventional 915 MHz radios with ~120 dB budget: −19 dB margin — consistent with observed failure. LoRa at SF12 (176 dB budget): 37 dB margin — workable but marginal.
+| Estimated radius | Penalty |
+|-----------------|---------|
+| R ≤ 50 m (sharp) | 3 dB |
+| R ≥ 2000 m (broad/gentle) | 15 dB |
+| 50 m < R < 2000 m | log-interpolated 3–15 dB |
+
+The 3–15 dB range comes from ITU-R P.526 engineering guidance: sharp ridges approach the knife-edge ideal (low penalty); broad rounded ridges can add 10–15 dB above knife-edge. The output displays the estimated radius and applied correction in the Diffr column, e.g. `37.1dB(+6.2r,R=134m)`. Note that 10m DEM resolution limits curvature accuracy — the estimate is a first-order engineering approximation, not a precision measurement. Reported margins for obstructed links should still be validated on-site.
+
+**Empirical validation:** Office → Golf Course Well is known to fail with conventional 915 MHz radios. The model shows 31 dB knife-edge diffraction + 6 dB rounded-ridge + 21 dB foliage + 88 dB FSPL = 146 dB total path loss. Conventional 915 MHz radios with ~120 dB budget: −26 dB margin — consistent with observed failure. LoRa at SF12 (176 dB budget): 29 dB margin — workable but field validation recommended.
 
 **Foliage loss model (ITU-R P.833-10):**
 
@@ -205,8 +213,11 @@ Elevation responses cached in `los/elevation_cache.json` — subsequent runs are
 **Site findings (TWP-LOS.kml, 6 active nodes):**
 
 All 6 nodes form a single connected mesh at SF12 with the Heltec V4.
-Minimum margin: ~33 dB (WWT Plant → Office and Golf Course Well → Spring Cottage).
-Most links are 37–95 dB.
+Minimum margin: ~18 dB (WWT Plant → Upper Well).
+Tightest links: WWT Plant → Upper Well (18 dB), Golf Course Well → Spring Cottage (22 dB), Office → Golf Course Well (29 dB).
+Most links are 35–95 dB.
+
+Model includes ITU-R P.833-10 foliage saturation (A_m = 26.5 dB), NLCD canopy correction at the worst ridge point, and an empirical rounded-ridge penalty of 6–15 dB on obstructed links based on estimated terrain radius of curvature.
 
 **Link reliability by margin:**
 
@@ -218,11 +229,10 @@ Most links are 37–95 dB.
 | < 20 dB | Risky; field test required |
 
 Real-world factors that consume margin: seasonal foliage variation (5–15 dB),
-terrain model error (2–5 dB), antenna mismatch (2–5 dB), multipath fading (3–10 dB),
-rounded-ridge diffraction underestimate (3–15 dB). Worst-case stack ~40 dB.
-Links below 40 dB margin should be field-validated with RSSI measurements before
-relying on them. Office → Golf Course Well (37 dB) is in that category — a known
-marginal path (fails with conventional 915 MHz radios, workable with LoRa SF12).
+terrain model error (2–5 dB), antenna mismatch (2–5 dB), multipath fading (3–10 dB).
+The rounded-ridge correction is already folded into the margin figures — further optimism is possible if ridges are sharper than 10m DEM resolution resolves.
+Links below 35 dB margin should be field-validated with RSSI measurements.
+WWT Plant → Upper Well (18 dB) and Golf Course Well → Spring Cottage (22 dB) are the highest-risk links; both are known heavily obstructed paths.
 
 **Mesh flood behavior and hop count:**
 
@@ -277,16 +287,18 @@ Expected RSSI ≈ RX_sensitivity + Margin
 
 | Predicted margin | Expected RSSI |
 |-----------------|---------------|
-| 38 dB (worst link) | −110 dBm |
-| 55 dB (typical) | −93 dBm |
-| 75 dB (clear LOS) | −73 dBm |
+| 18 dB (WWT Plant → Upper Well) | −130 dBm |
+| 29 dB (Office → Golf Course Well) | −119 dBm |
+| 36 dB (Water Plant → Golf Course Well) | −112 dBm |
+| 62 dB (WWT Plant → Spring Cottage) | −86 dBm |
+| 85 dB (WWT Plant → Golf Course Well) | −63 dBm |
 
 If measured RSSI is better than predicted, the terrain model is conservative. If
 worse, the DEM underestimates obstruction — consider raising antenna height.
 
 Monitor the MQTT stream during the field test to collect per-link RSSI/SNR for all
-node pairs. Pay particular attention to Water Plant → Golf Course Well (predicted
-−110 dBm), the link most sensitive to terrain model error.
+node pairs. Pay particular attention to WWT Plant → Upper Well (predicted −130 dBm,
+only 18 dB margin), the most sensitive link in the mesh.
 
 ## Status
 

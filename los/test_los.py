@@ -268,6 +268,7 @@ def test_analyze_link_return_keys():
     b = node("B", 41.91, -74.10)
     result = analyze(a, b)
     for key in ("distance_km", "samples", "min_clearance_m", "diffraction_db",
+                 "ridge_correction_db", "ridge_radius_m",
                  "antenna_a", "antenna_b", "foliage_db", "foliage_src"):
         assert key in result, f"missing key: {key}"
 

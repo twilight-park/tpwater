@@ -382,6 +382,39 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
     v              = worst_geo_excess * math.sqrt(2 * (worst_d1 + worst_d2) / (wavelength * worst_d1 * worst_d2))
     diffraction_db = knife_edge_loss(v)
 
+    # Rounded-ridge correction: real terrain is never a perfect knife-edge.
+    # Estimate radius of curvature R at the worst point using a 5-sample stencil
+    # (25 m each side at default spacing) to smooth out 10 m DEM noise.
+    # Interpolate penalty 3–15 dB on a log scale: 3 dB for a sharp spike
+    # (R < 50 m), 15 dB for a broad smooth hill (R > 2000 m).
+    # Applied only when terrain actually creates an obstruction.
+    ridge_correction_db = 0.0
+    ridge_radius_m      = None
+    if worst_geo_excess > 0:
+        n  = min(5, worst_i - 1, samples - 1 - worst_i)
+        if n >= 1:
+            h_lo = terrain[worst_i - n]
+            h_pk = terrain[worst_i]
+            h_hi = terrain[worst_i + n]
+            d2h  = (h_lo - 2 * h_pk + h_hi) / (n * actual_spacing) ** 2
+            if d2h < 0:
+                R = 1.0 / (-d2h)
+            else:
+                R = float("inf")   # flat or convex-down at this point
+        else:
+            R = float("inf")
+        ridge_radius_m = R
+        R_min, R_max   = 50.0, 2000.0
+        P_min, P_max   = 3.0,  15.0
+        if R <= R_min:
+            ridge_correction_db = P_min
+        elif R >= R_max:
+            ridge_correction_db = P_max
+        else:
+            t = math.log(R / R_min) / math.log(R_max / R_min)
+            ridge_correction_db = P_min + (P_max - P_min) * t
+        diffraction_db += ridge_correction_db
+
     # Foliage pass: NLCD at every sample point.
     # (worst-point lookup above is usually already cached from a prior run)
 
@@ -417,15 +450,17 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
         foliage_src = f"path:{foliage_meters:.0f}m"
 
     return {
-        "distance_km":     total_distance / 1000.0,
-        "samples":         samples,
-        "min_clearance_m": min_clearance,
-        "diffraction_db":  diffraction_db,
-        "antenna_a":       h_a,
-        "antenna_b":       h_b,
-        "foliage_db":      foliage_db,
-        "foliage_src":     foliage_src,
-        "nlcd_fetches":    nlcd_fetches,
+        "distance_km":          total_distance / 1000.0,
+        "samples":              samples,
+        "min_clearance_m":      min_clearance,
+        "diffraction_db":       diffraction_db,
+        "ridge_correction_db":  ridge_correction_db,
+        "ridge_radius_m":       ridge_radius_m,
+        "antenna_a":            h_a,
+        "antenna_b":            h_b,
+        "foliage_db":           foliage_db,
+        "foliage_src":          foliage_src,
+        "nlcd_fetches":         nlcd_fetches,
     }
 
 
@@ -501,12 +536,20 @@ def cmd_analyze(args):
             reachable[a["name"]].add(b["name"])
             reachable[b["name"]].add(a["name"])
 
+        rc  = result["ridge_correction_db"]
+        rr  = result["ridge_radius_m"]
+        if rc > 0 and rr is not None:
+            rr_str   = f"{rr:.0f}m" if rr < float("inf") else "∞"
+            diff_str = f"{result['diffraction_db']:.1f}dB(+{rc:.1f}r,R={rr_str})"
+        else:
+            diff_str = f"{result['diffraction_db']:.1f}dB"
+
         rows.append([
             f"{a['name']} -> {b['name']}",
             f"{result['distance_km']:.2f}km",
             f"{result['antenna_a']:.0f}/{result['antenna_b']:.0f}m",
             f"{result['min_clearance_m']:.1f}m",
-            f"{result['diffraction_db']:.1f}dB",
+            diff_str,
             f"{rf['foliage_db']:.1f}dB",
             result["foliage_src"],
             f"{rf['fspl_db']:.1f}dB",
