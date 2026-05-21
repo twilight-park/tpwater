@@ -338,58 +338,79 @@ def analyze_link(a, b, freq_mhz=915.0, sample_distance=5.0, default_antenna_heig
     h1 = terrain[0]  + h_a
     h2 = terrain[-1] + h_b
 
+    has_kml_foliage  = "foliage_depth" in a["attrs"] or "foliage_depth" in b["attrs"]
+
     min_clearance    = float("inf")
     worst_d1         = total_distance / 2
     worst_d2         = total_distance / 2
     worst_geo_excess = 0.0
+    worst_i          = 1
+    foliage_meters   = 0.0
     nlcd_fetches     = 0
 
+    # Diffraction pass: bare-earth terrain only.
     for i in range(1, samples):
-        d1 = total_distance * (i / samples)
-        d2 = total_distance - d1
-
+        d1        = total_distance * (i / samples)
+        d2        = total_distance - d1
         los_h     = h1 + (h2 - h1) * (d1 / total_distance)
         curvature = earth_curvature_bulge(d1, d2)
         fresnel_r = fresnel_radius(d1, d2, freq_mhz)
         clearance = los_h - terrain[i] - curvature - 0.6 * fresnel_r
-
         if clearance < min_clearance:
             min_clearance    = clearance
             worst_d1         = d1
             worst_d2         = d2
             worst_geo_excess = terrain[i] + curvature - los_h
+            worst_i          = i
+
+    # NED/3DEP is bare earth. When terrain creates a real obstruction, the signal
+    # must clear the treetops at the ridge, not just the dirt. Add canopy height at
+    # the single worst point only — not everywhere, which would double-count with
+    # the foliage model for nodes that sit inside a forested canopy.
+    if use_nlcd and worst_geo_excess > 0:
+        worst_lat, worst_lon = sample_points[worst_i]
+        key    = f"{worst_lat:.4f},{worst_lon:.4f}"
+        cached = key in _nlcd_cache
+        cls    = nlcd_class_at(worst_lat, worst_lon)
+        if not cached:
+            nlcd_fetches += 1
+        if cls is not None:
+            ridge_canopy     = _NLCD_CANOPY_HEIGHT.get(cls, 0.0)
+            worst_geo_excess += ridge_canopy
+            min_clearance    -= ridge_canopy
 
     v              = worst_geo_excess * math.sqrt(2 * (worst_d1 + worst_d2) / (wavelength * worst_d1 * worst_d2))
     diffraction_db = knife_edge_loss(v)
 
-    # Foliage: integrate forested meters along the full LOS where the beam is
-    # within the canopy.  KML foliage_depth overrides; --no-nlcd uses constant
-    # terminal depth at each end.
-    if "foliage_depth" in a["attrs"] or "foliage_depth" in b["attrs"]:
-        depth_a = float(a["attrs"].get("foliage_depth", foliage_height))
-        depth_b = float(b["attrs"].get("foliage_depth", foliage_height))
+    # Foliage pass: NLCD at every sample point.
+    # (worst-point lookup above is usually already cached from a prior run)
+
+    if has_kml_foliage:
+        depth_a     = float(a["attrs"].get("foliage_depth", foliage_height))
+        depth_b     = float(b["attrs"].get("foliage_depth", foliage_height))
         foliage_db  = foliage_loss(depth_a + depth_b, forest_db_per_m, foliage_max_db)
         foliage_src = f"KML:{depth_a:.0f}m+KML:{depth_b:.0f}m"
-        nlcd_fetches = 0
     elif not use_nlcd:
         foliage_db   = foliage_loss(2 * foliage_height, forest_db_per_m, foliage_max_db)
         foliage_src  = f"const:{foliage_height:.0f}m+const:{foliage_height:.0f}m"
-        nlcd_fetches = 0
     else:
-        foliage_meters = 0.0
-        nlcd_fetches   = 0
         for i in range(1, samples):
-            los_h_i  = h1 + (h2 - h1) * (i / samples)
-            above    = los_h_i - terrain[i]
             lat_i, lon_i = sample_points[i]
-            key      = f"{lat_i:.4f},{lon_i:.4f}"
-            cached   = key in _nlcd_cache
-            cls      = nlcd_class_at(lat_i, lon_i)
+            los_h_i      = h1 + (h2 - h1) * (i / samples)
+            above        = los_h_i - terrain[i]
+            key          = f"{lat_i:.4f},{lon_i:.4f}"
+            cached       = key in _nlcd_cache
+            cls          = nlcd_class_at(lat_i, lon_i)
             if not cached:
                 nlcd_fetches += 1
-            canopy_ht = _NLCD_CANOPY_HEIGHT.get(cls, 0.0) if cls is not None else foliage_height
-            mult      = _NLCD_FOLIAGE_MULT.get(cls, 0.0) if cls is not None else 1.0
-            threshold = min(foliage_height, canopy_ht) if cls is not None else foliage_height
+            if cls is not None:
+                canopy_ht = _NLCD_CANOPY_HEIGHT.get(cls, 0.0)
+                mult      = _NLCD_FOLIAGE_MULT.get(cls, 0.0)
+                threshold = min(foliage_height, canopy_ht)
+            else:
+                canopy_ht = foliage_height
+                mult      = 1.0
+                threshold = foliage_height
             if mult > 0 and 0 <= above < threshold:
                 foliage_meters += actual_spacing * mult
         foliage_db  = foliage_loss(foliage_meters, forest_db_per_m, foliage_max_db)

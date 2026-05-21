@@ -183,6 +183,22 @@ def test_analyze_ridge_causes_diffraction():
     assert result["diffraction_db"] > 5.0
     assert result["min_clearance_m"] < 0.0
 
+def test_canopy_increases_diffraction():
+    # Forested ridge: canopy adds to effective obstacle height → more diffraction
+    a = node("A", 41.90, -74.10)
+    b = node("B", 41.91, -74.10)
+
+    def ridge(pts):
+        elev = [100.0] * len(pts)
+        elev[len(pts) // 2] = 115.0
+        return elev
+
+    grass  = analyze(a, b, terrain_fn=ridge, nlcd_class=71, default_antenna_height=3.0)
+    forest = analyze(a, b, terrain_fn=ridge, nlcd_class=41, default_antenna_height=3.0)
+    # NLCD 41 = deciduous, canopy_ht=22m: effective obstacle is 22m taller
+    assert forest["diffraction_db"] > grass["diffraction_db"]
+    assert forest["min_clearance_m"] < grass["min_clearance_m"]
+
 def test_analyze_clearance_positive_for_clear_path():
     # Tall antennas (20m) well above the max Fresnel radius (~9.5m at midpoint
     # of a ~1km link) → clearance positive at every sample point.
