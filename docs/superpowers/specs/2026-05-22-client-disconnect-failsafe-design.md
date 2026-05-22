@@ -13,7 +13,7 @@ immediately. There is no automatic shutoff.
 ## Solution
 
 Option C — belt and suspenders: fix the existing (broken) client-side failsafe and add
-hub-side output zeroing when a client goes late.
+hub-side output zeroing on a separate failsafe timeout.
 
 ## Changes
 
@@ -33,32 +33,58 @@ the hub.
 
 ### 2. Hub-side (`hub/tpwater-hub.tcl`)
 
-**`config-reader`:** Inside the `if { [$name get mode] eq "output" }` block, add:
+Two separate thresholds, both checked in the `check` proc:
+
+**Lateness (60s) — unchanged:** marks `$config:late true` and resets sensor values to `???`.
+
+**Failsafe (180s) — new:** zeros each output's `:request` on the hub. Fires once per
+disconnect (guarded by a `$config:failsafe` flag, reset to `false` when packets resume).
+
+**`config-reader`:** Track per-config outputs and initialize the failsafe flag:
 
 ```tcl
+# inside if { [$name get mode] eq "output" }:
 dict lappend ::$configName outputs $name
+
+# in the second loop initializing per-config state:
+set ::$config:failsafe false
 ```
 
-This records which outputs belong to each config. Configs with no outputs (e.g.
-waterplant) simply won't have the `outputs` key.
-
-**`check` proc:** After marking a config late and resetting sensor values to `???`,
-zero each of that config's outputs on the hub:
+**`check` proc additions:**
 
 ```tcl
-if { [dict exists [set ::$config] outputs] } {
-    foreach name [dict get [set ::$config] outputs] {
-        log "Failsafe: zeroing $name:request (client $config late)"
-        set ::$name:request 0
+# existing lateness block (delta > 60) — unchanged
+if { !$late && $delta > 60 } {
+    log "Packet late $delta seconds at $now"
+    set ::$config:late true
+    set names [dict get [set ::$config] names]
+    foreach name $names {
+        set ::$name "???"
+    }
+}
+
+# new failsafe block (delta > 180, fires once)
+set failsafe [set ::$config:failsafe]
+if { !$failsafe && $delta > 180 } {
+    set ::$config:failsafe true
+    if { [dict exists [set ::$config] outputs] } {
+        foreach name [dict get [set ::$config] outputs] {
+            log "Failsafe: zeroing $name:request (client $config offline ${delta}s)"
+            set ::$name:request 0
+        }
     }
 }
 ```
 
-This clears the hub's request state so the switch won't re-energize on reconnect.
+**Reset on reconnect:** In the `rec` handler, after `set ::$config:late false`, also
+reset `set ::$config:failsafe false`.
 
-## Timeout
+## Thresholds
 
-60 seconds — unchanged from the existing lateness detection threshold. No new timers.
+| Event           | Threshold | Variable        |
+|-----------------|-----------|-----------------|
+| Mark late       | 60s       | `$config:late`  |
+| Zero outputs    | 180s      | `$config:failsafe` |
 
 ## Affected Configs
 
@@ -71,6 +97,5 @@ Only configs with `mode output` channels are affected:
 ## Non-Goals
 
 - No SMS notification when failsafe fires
-- No change to the 60s timeout threshold
 - No change to reconnect behavior (client reconnects normally; rules re-evaluate and
   may re-enable outputs if conditions warrant)
