@@ -144,6 +144,7 @@ msg_srvproc WATER rec { seconds args } {
             # log Dropped $delta seconds from $last to $seconds
         }
         set ::$config:late false
+        set ::$config:failsafe false
         set ::$config:last $now
         db:record $config $seconds {*}[zip $names $args]
 
