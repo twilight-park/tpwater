@@ -79,11 +79,12 @@ proc config-reader { dir } {
             dict lappend ::$configName names $name
 
             if { [$name get mode] eq "output" } {
-                msg_publish WATER $name:request 
+                msg_publish WATER $name:request
                 if { $config eq "hub.cfg" } {
                     trace add variable ::$name:request write "set-state $name"
                 }
                 lappend ::outputs $name
+                dict lappend ::$configName outputs $name
             }
         }
     }
@@ -91,6 +92,7 @@ proc config-reader { dir } {
     foreach config $configs {
         set ::$config:last 0
         set ::$config:late true
+        set ::$config:failsafe false
     }
 
     return $configs
