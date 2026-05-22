@@ -174,6 +174,17 @@ proc check { config } {
             set ::$name "???"
         }
     }
+
+    set failsafe [set ::$config:failsafe]
+    if { !$failsafe && $delta > 180 } {
+        set ::$config:failsafe true
+        if { [dict exists [set ::$config] outputs] } {
+            foreach name [dict get [set ::$config] outputs] {
+                log "Failsafe: zeroing $name:request (client $config offline ${delta}s)"
+                set ::$name:request 0
+            }
+        }
+    }
 }
 
 set ::apikeyMap {}
