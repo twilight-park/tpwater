@@ -90,7 +90,7 @@ proc config-reader { dir } {
     }
 
     foreach config $configs {
-        set ::$config:last 0
+        set ::$config:last [clock seconds]
         set ::$config:late true
         set ::$config:failsafe false
     }
