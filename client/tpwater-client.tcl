@@ -191,10 +191,10 @@ proc setstate { server sock id op } {
     upvar #0 $server S
     print SETSTATE $server $id -> $S(connection)
     if { $S(connection) ne "Up" } {
-        foreach $name $::outputs {
+        foreach name $::outputs {
             $name write 0
             set ::$name 0
-            print set ::$value 0
+            print set ::$name 0
         }
     }
 }
