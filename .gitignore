@@ -4,3 +4,5 @@
 *.db-journal
 pkg/
 log/
+los/__pycache__/
+los/elevation_cache.json

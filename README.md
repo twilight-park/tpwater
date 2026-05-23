@@ -286,16 +286,41 @@ Query historical data:
 - Network operator selection
 
 ### AT Commands for Modem Configuration
+
+Connect to the modem console:
 ```bash
-# Check signal strength
-AT+CSQ
+screen /dev/ttyUSB2 115200   # CTRL-A \ to exit
+```
 
-# Check network registration
-AT+CREG?
+```
+# Status
+AT+CSQ                       # Signal strength
+AT+CREG?                     # Network registration
+AT+COPS?                     # Current operator
+AT+CPSI?                     # Detailed network info (band, cell, RSRP, etc.)
+AT+CGSN                      # Serial number
 
-# Force network operator
-AT+COPS=1,2,"310410"    # AT&T
-AT+COPS=1,2,"310260"    # T-Mobile
+# APN
+AT+CGDCONT?                  # Check APN settings
+AT+CGDCONT=1,"IP","simbase"  # Set APN (Simbase)
+
+# Network operator
+AT+COPS=?                    # Scan available operators
+AT+COPS=0                    # Auto-select operator
+AT+COPS=1,2,"310410"         # Force AT&T
+AT+COPS=1,2,"310260"         # Force T-Mobile
+
+# USB networking mode (requires AT+CRESET after change)
+AT+CUSBPIDSWITCH=9011,1,1    # Switch to RNDIS mode
+AT+CUSBPIDSWITCH=9001,1,1    # Switch back to ECM mode
+
+# Time sync
+AT+CTZU?                     # Check auto time zone update
+AT+CTZU=1                    # Enable auto time zone update
+AT+CCLK?                     # Check modem clock
+
+# Reset
+AT+CRESET                    # Reset modem
 ```
 
 ### Firewall Rules
