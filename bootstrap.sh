@@ -33,15 +33,15 @@ cell_interface() {
 }
 
 case $CMD in 
-    auth|config|copy|overlay|remote|setup|gitkeys|keys|reboot|restore|update|kiosk)
+    auth|config|copy|overlay|remote|setup|gitkeys|keys|reboot|restore|update|kiosk|upgrade)
         if [ "$1" != "" ] ; then
             PI=$1; shift
             if [ "$PI" = "" ] ; then
-                echo "remote pi nmae required" 1>&2
+                echo "remote pi name required" 1>&2
                 exit 1
             fi
         else
-            echo "remote pi nmae required" 1>&2
+            echo "remote pi name required" 1>&2
             exit 1
         fi
         ;;
@@ -178,6 +178,27 @@ case $CMD in
     copy)
         scp $0 $PI:
         ;;
+
+    upgrade-remote)
+        sudo apt -y upgrade
+        sudo apt -y update
+        sudo apt -y autoremove
+	;;
+
+    upgrade)
+        $0 overlay $PI down 
+        $0 reboot $PI
+        sleep 90
+
+        $0 copy $PI
+        $0 remote $PI upgrade-remote
+
+        $0 overlay $PI up
+
+        $0 remote $PI clear-log
+        $0 reboot $PI
+        sleep 90
+	;;
 
     cell-down)
         cell=$(cell_interface)
