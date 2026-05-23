@@ -35,5 +35,10 @@ wapp-route GET /values {
 
 proc wapp-default {} {
     wapp-allow-xorigin-params
-    html-page [string range [wapp-param PATH_INFO] 1 end]
+    set page [string range [wapp-param PATH_INFO] 1 end]
+    if { $page eq "" } {
+        wapp-redirect /[expr { [is-hub?] ? "monitor" : "status" }]
+        return
+    }
+    html-page $page
 }

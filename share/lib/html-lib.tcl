@@ -51,7 +51,9 @@ proc check-auth { page } {
     }
 
     if { $authOk && $page eq "login" } {
-        wapp-redirect /[wapp-param page [expr { [is-hub?] ? "monitor" : "status" }]]
+        set dest [wapp-param page]
+        if { $dest eq "" } { set dest [expr { [is-hub?] ? "monitor" : "status" }] }
+        wapp-redirect /$dest
         return false
     }
 
