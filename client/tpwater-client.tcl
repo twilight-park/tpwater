@@ -203,7 +203,7 @@ proc setstate { server sock id op } {
 msg_client WATER
 msg_apikey WATER $apikey
 msg_setreopen WATER 10000
-msg_keepalive WATER 5000 60000 setstate
+msg_keepalive WATER 10000 120000 setstate
 
 proc setdate { var args } {
     upvar $var value
