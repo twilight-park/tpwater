@@ -1,8 +1,10 @@
 
-set ::pump_off_time 0
+set ::pump_off_time  0
+set ::golf:request   0
+set ::thrd:request   0
 
 proc pump-off {} {
-    if { [set ::golf:request] || [set ::thrd:request] } {
+    if { [string is true -strict [set ::golf:request]] || [string is true -strict [set ::thrd:request]] } {
         set ::golf:request 0
         set ::thrd:request 0
         set ::pump_off_time [clock seconds]

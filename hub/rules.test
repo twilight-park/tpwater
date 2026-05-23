@@ -74,6 +74,16 @@ proc advance { seconds } {
 # Tests
 # ==============================================================================
 
+# pump-off safe when request vars are empty string (msg_publish startup condition)
+test pump-off-empty-string-safe {pump-off does not throw when requests are empty string} {
+    reset
+    set ::golf:request ""
+    set ::thrd:request ""
+    pump-off
+    # pump is not on, so no state change and no timer update
+    list [set ::golf:request] [set ::thrd:request] $::pump_off_time
+} {{} {} 0}
+
 # pump-off sets both requests and records timestamp
 test pump-off-turns-off {pump-off zeroes both requests and records time} {
     reset
