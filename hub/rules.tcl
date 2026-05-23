@@ -1,20 +1,36 @@
 
+set ::pump_off_time 0
+
+proc pump-off {} {
+    if { [set ::golf:request] || [set ::thrd:request] } {
+        set ::golf:request 0
+        set ::thrd:request 0
+        set ::pump_off_time [clock seconds]
+    }
+}
+
+proc pump-on {} {
+    if { [expr { [clock seconds] - $::pump_off_time }] >= 300 } {
+        set ::golf:request 1
+        set ::thrd:request 1
+    }
+}
+
 every 5000 {
     try-rule auto {
-        if { $::tank <= 101.5 } {
-            set ::golf:request 1
-            set ::thrd:request 1
-        }
-        if { $::tank > 102.5 } {
-            set ::golf:request 0
-            set ::thrd:request 0
+        if { [set ::waterplant:late] } {
+            pump-off
+        } elseif { $::tank <= 101.5 } {
+            pump-on
+        } elseif { $::tank > 102.5 } {
+            pump-off
         }
     }
 }
 
 cron { Mon at 10:05 } {
     try-rule NOTE {
-        notify NOTE 
+        notify NOTE
     }
 }
 
@@ -32,4 +48,3 @@ cron { every 2m at 5s } {
         }
     }
 }
-

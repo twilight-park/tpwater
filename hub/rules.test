@@ -1,0 +1,214 @@
+#!/usr/bin/env tclsh
+#
+# Test harness for rules.tcl - stubs all external dependencies and
+# drives the rule callbacks directly with mocked time.
+#
+package require tcltest
+namespace import tcltest::*
+
+# --- mock: clock seconds ------------------------------------------------------
+
+rename clock _real_clock
+proc clock { args } {
+    if { [lindex $args 0] eq "seconds" } { return $::mock_time }
+    _real_clock {*}$args
+}
+
+# --- mock: every / cron -------------------------------------------------------
+#
+# Capture callbacks by interval so tests can fire them manually.
+
+set ::every_cbs {}
+proc every { ms body } {
+    lappend ::every_cbs [list $ms $body]
+}
+
+proc run-every { ms } {
+    foreach cb $::every_cbs {
+        if { [lindex $cb 0] == $ms } { eval [lindex $cb 1] }
+    }
+}
+
+proc cron { args } {}   ;# not under test here
+
+# --- mock: try-rule -----------------------------------------------------------
+
+proc try-rule { name body } {
+    try { uplevel 1 $body } on error {e opts} {
+        puts "  try-rule $name caught: $e"
+    }
+}
+
+# --- mock: notify / log / rolling_gpm ----------------------------------------
+
+proc notify  { args } {}
+proc log     { args } {}
+proc rolling_gpm { args } { return {{0 0}} }
+
+# --- load rules ---------------------------------------------------------------
+
+set script_dir [file dirname [info script]]
+source $script_dir/rules.tcl
+
+# --- helpers ------------------------------------------------------------------
+
+proc reset {} {
+    set ::mock_time      1000
+    set ::pump_off_time  0
+    set ::golf:request   0
+    set ::thrd:request   0
+    set ::waterplant:late false
+    set ::tank           103.0
+}
+
+proc tick { {delta 5} } {
+    incr ::mock_time $delta
+    run-every 5000
+}
+
+proc advance { seconds } {
+    incr ::mock_time $seconds
+}
+
+# ==============================================================================
+# Tests
+# ==============================================================================
+
+# pump-off sets both requests and records timestamp
+test pump-off-turns-off {pump-off zeroes both requests and records time} {
+    reset
+    set ::golf:request 1
+    set ::thrd:request 1
+    pump-off
+    list [set ::golf:request] [set ::thrd:request] $::pump_off_time
+} {0 0 1000}
+
+# pump-off is idempotent - won't reset the timer if already off
+test pump-off-idempotent {pump-off does not advance pump_off_time when already off} {
+    reset
+    set ::golf:request 0
+    set ::thrd:request 0
+    set ::pump_off_time 500
+    pump-off
+    set ::pump_off_time
+} {500}
+
+# pump-on blocked within 300s of last off
+test pump-on-blocked-within-300s {pump-on refuses to turn pumps on before 300s} {
+    reset
+    set ::pump_off_time 800    ;# 200s ago (mock_time=1000)
+    pump-on
+    list [set ::golf:request] [set ::thrd:request]
+} {0 0}
+
+# pump-on allowed after 300s
+test pump-on-allowed-after-300s {pump-on enables pumps after 300s have elapsed} {
+    reset
+    set ::pump_off_time 500    ;# 500s ago (mock_time=1000)
+    pump-on
+    list [set ::golf:request] [set ::thrd:request]
+} {1 1}
+
+# pump-on allowed when pump_off_time is 0 (never turned off)
+test pump-on-allowed-initial {pump-on works when pump has never been turned off} {
+    reset
+    set ::pump_off_time 0
+    set ::mock_time 1000
+    pump-on
+    list [set ::golf:request] [set ::thrd:request]
+} {1 1}
+
+# auto rule: waterplant late -> pump-off regardless of tank level
+test auto-waterplant-late-turns-off {when waterplant:late, auto rule turns pumps off} {
+    reset
+    set ::waterplant:late true
+    set ::tank            99.0   ;# would normally trigger pump-on
+    set ::golf:request    1
+    set ::thrd:request    1
+    tick
+    list [set ::golf:request] [set ::thrd:request]
+} {0 0}
+
+# auto rule: tank high -> pump-off
+test auto-tank-high-turns-off {tank > 102.5 turns pumps off} {
+    reset
+    set ::golf:request 1
+    set ::thrd:request 1
+    set ::tank 103.0
+    tick
+    list [set ::golf:request] [set ::thrd:request]
+} {0 0}
+
+# auto rule: tank low -> pump-on (after hysteresis)
+test auto-tank-low-turns-on {tank <= 101.5 turns pumps on after 300s off} {
+    reset
+    set ::tank 101.0
+    set ::pump_off_time 0    ;# well beyond 300s at mock_time=1000
+    tick
+    list [set ::golf:request] [set ::thrd:request]
+} {1 1}
+
+# auto rule: tank low but within hysteresis window -> stays off
+test auto-tank-low-hysteresis {tank low but within 300s off window keeps pumps off} {
+    reset
+    set ::tank 101.0
+    set ::pump_off_time 900  ;# only 100s ago
+    tick
+    list [set ::golf:request] [set ::thrd:request]
+} {0 0}
+
+# hysteresis: pump turns off, comes back after exactly 300s
+test hysteresis-boundary {pumps remain off at 299s, turn on at 300s} {
+    reset
+    set ::golf:request 1
+    set ::thrd:request 1
+    set ::tank 103.0
+    tick                         ;# tank high -> pump-off, pump_off_time = 1005
+
+    set off_time $::pump_off_time
+    set ::tank 101.0             ;# now tank is low, want pumps on
+
+    # at 299s elapsed - should still be blocked
+    set ::mock_time [expr { $off_time + 299 }]
+    run-every 5000
+    set before [list [set ::golf:request] [set ::thrd:request]]
+
+    # at 300s elapsed - should be allowed
+    set ::mock_time [expr { $off_time + 300 }]
+    run-every 5000
+    set after [list [set ::golf:request] [set ::thrd:request]]
+
+    list $before $after
+} {{0 0} {1 1}}
+
+# stale recovery: waterplant comes back, pumps stay off for 300s
+test stale-recovery-hysteresis {after waterplant recovers pumps stay off for 300s} {
+    reset
+    set ::golf:request 1
+    set ::thrd:request 1
+    set ::tank 101.0
+
+    # waterplant goes late, pumps turn off
+    set ::waterplant:late true
+    tick
+    set off_time $::pump_off_time
+
+    # waterplant recovers
+    set ::waterplant:late false
+
+    # 200s later: tank still low, but hysteresis blocks it
+    set ::mock_time [expr { $off_time + 200 }]
+    run-every 5000
+    set mid [list [set ::golf:request] [set ::thrd:request]]
+
+    # 300s later: pumps allowed back on
+    set ::mock_time [expr { $off_time + 300 }]
+    run-every 5000
+    set late [list [set ::golf:request] [set ::thrd:request]]
+
+    list $mid $late
+} {{0 0} {1 1}}
+
+# ==============================================================================
+
+cleanupTests
