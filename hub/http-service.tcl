@@ -27,7 +27,8 @@ proc host-alias { device host } {
         }
     }
 
-    return [expr $device != "" ? "$device" : $host]
+    if { $device ne {} } { return $device }
+    return $host
 }
 
 wapp-route GET /clients {
