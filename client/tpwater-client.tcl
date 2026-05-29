@@ -188,13 +188,17 @@ proc run { args } {
 }
 
 proc mesh-connect {} {
-    if { ![file exists /dev/ttyACM0] } return
+    if { ![file exists /dev/ttyACM0] } {
+        after 30000 mesh-connect
+        return
+    }
     mesh::close
     try {
         mesh::open /dev/ttyACM0 mesh-recv
         log mesh connected
     } on error e {
         log-error "mesh-connect: $e"
+        after 30000 mesh-connect
     }
 }
 
@@ -204,13 +208,19 @@ proc mesh-recv { pkt } {
         after 30000 mesh-connect
         return
     }
-    set text [encoding convertfrom utf-8 [dict get $pkt payload]]
-    if { [llength $text] % 2 != 0 } {
-        log-error "mesh-recv: odd-length payload, discarding"
-        return
-    }
-    foreach { name value } $text {
-        catch { set ::$name $value }
+    try {
+        set text [encoding convertfrom utf-8 [dict get $pkt payload]]
+        if { [llength $text] % 2 != 0 } {
+            log-error "mesh-recv: odd-length payload, discarding"
+            return
+        }
+        set allowed [list clk {*}[lmap n $::outputs { string cat $n :request }]]
+        foreach { name value } $text {
+            if { $name ni $allowed } continue
+            catch { set ::$name $value }
+        }
+    } on error e {
+        log-error "mesh-recv: $e"
     }
 }
 
