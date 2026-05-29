@@ -20,6 +20,7 @@ package require jbr::func
 package require jbr::unix
 package require jbr::with
 package require jbr::seconds
+package require jbr::mesh
 
 set LOGPATH $::script_dir/../log
 set LOGTAIL [file rootname [file tail $::argv0]]
@@ -157,10 +158,13 @@ proc record { args } {
         }
         log record [clock seconds] {*}[zip $args $values]
 
-        try { msg_cmd WATER "rec [clock seconds] $values" 0 nowait 
+        try { msg_cmd WATER "rec [clock seconds] $values" 0 nowait
         } on error e {
             log-error $e
         }
+
+        try { mesh::send_text 0xFFFFFFFF "rec [clock seconds] $values"
+        } on error e { log-error "mesh send: $e" }
     } on error e { log-error record : $e }
 }
 
@@ -180,6 +184,28 @@ proc readout {} {
 proc run { args } {
     with [open "| $args"] as p {
         return [lindex [read $p] 0]
+    }
+}
+
+proc mesh-connect {} {
+    if { ![file exists /dev/ttyACM0] } return
+    try {
+        mesh::open /dev/ttyACM0 mesh-recv
+        log mesh connected
+    } on error e {
+        log-error "mesh-connect: $e"
+    }
+}
+
+proc mesh-recv { pkt } {
+    if { [dict exists $pkt event] } {
+        log-error "mesh disconnected"
+        after 30000 mesh-connect
+        return
+    }
+    set text [encoding convertfrom utf-8 [dict get $pkt payload]]
+    foreach { name value } $text {
+        catch { set ::$name $value }
     }
 }
 
@@ -214,12 +240,16 @@ msg_subscribe WATER clk {} setdate  [expr -60*60*24]
 set configs [config-reader $::script_dir/../share/config $apikey]
 
 readout
+mesh-connect
 
 proc sim-status {} {
-    try { 
+    try {
         set values [get-sim-status]
         log sim status {*}$values
-        msg_cmd WATER "radio [clock seconds] $values" 0 nowait 
+        msg_cmd WATER "radio [clock seconds] $values" 0 nowait
+
+        try { mesh::send_text 0xFFFFFFFF "radio [clock seconds] $values"
+        } on error e { log-error "mesh send: $e" }
     } on error e {
         log-error $e
     }
