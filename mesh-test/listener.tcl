@@ -13,8 +13,10 @@ lappend auto_path $HOME/lib/tcl8/lib
 package require jbr::msg
 package require jbr::mesh
 
-set HUBIP [lindex $argv 0]
-if { $HUBIP eq "" } { puts "Usage: tclsh listener.tcl <hub-ip>"; exit 1 }
+set HUBIP  [lindex $argv 0]
+set DEVICE [lindex $argv 1]
+if { $DEVICE eq "" } { set DEVICE /dev/ttyACM0 }
+if { $HUBIP eq "" } { puts "Usage: tclsh listener.tcl <hub-ip> ?/dev/ttyACMx?"; exit 1 }
 set env(WATER) $HUBIP:8001
 
 # --- Simulated outputs (mirrors tpwater-client) ---
@@ -44,8 +46,12 @@ proc mesh-recv { pkt } {
         after 10000 mesh-connect
         return
     }
+    # Only TEXT_MESSAGE_APP (portnum 1) carries our payloads; skip config/
+    # telemetry/nodeinfo noise from the want_config dump.
+    if { [dict get $pkt portnum] != 1 } return
     set text [encoding convertfrom utf-8 [dict get $pkt payload]]
-    puts "\[MESH RECV\] $text"
+    if { $text eq "" } return
+    puts "\[MESH RECV\] from=[format %x [dict get $pkt from]] rssi=[dict get $pkt rssi] snr=[dict get $pkt snr]: $text"
     if { [llength $text] % 2 != 0 } { puts "\[MESH\] odd payload, skip"; return }
     set allowed [list pump:request golf:request clk]
     foreach { name value } $text {
@@ -55,13 +61,14 @@ proc mesh-recv { pkt } {
 }
 
 proc mesh-connect {} {
-    if { ![file exists /dev/ttyACM0] } {
-        puts "\[MESH\] no /dev/ttyACM0 — retry in 10s"; after 10000 mesh-connect; return
+    set dev [mesh::find_device $::DEVICE]
+    if { $dev eq "" } {
+        puts "\[MESH\] no radio device found — retry in 10s"; after 10000 mesh-connect; return
     }
     mesh::close
     try {
-        mesh::open /dev/ttyACM0 mesh-recv
-        puts "\[MESH\] connected"
+        mesh::open $dev mesh-recv
+        puts "\[MESH\] connected on $dev"
     } on error e {
         puts "\[MESH\] failed: $e — retry in 10s"; after 10000 mesh-connect
     }
