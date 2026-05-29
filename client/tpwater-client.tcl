@@ -189,6 +189,7 @@ proc run { args } {
 
 proc mesh-connect {} {
     if { ![file exists /dev/ttyACM0] } return
+    mesh::close
     try {
         mesh::open /dev/ttyACM0 mesh-recv
         log mesh connected
@@ -204,6 +205,10 @@ proc mesh-recv { pkt } {
         return
     }
     set text [encoding convertfrom utf-8 [dict get $pkt payload]]
+    if { [llength $text] % 2 != 0 } {
+        log-error "mesh-recv: odd-length payload, discarding"
+        return
+    }
     foreach { name value } $text {
         catch { set ::$name $value }
     }
