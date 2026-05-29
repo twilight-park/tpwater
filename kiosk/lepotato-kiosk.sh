@@ -51,7 +51,13 @@ EOF
     case "$SUBCMD" in
       up)
         echo "Enabling read-only rootfs overlay..."
-        sudo overlayroot-chroot sh -c 'echo overlayroot=\"tmpfs\" >> /etc/overlayroot.conf'
+        # Use overlayroot-chroot if already in overlay mode, else write directly
+        if [ -x "$(command -v overlayroot-chroot)" ] && grep -q overlay /proc/mounts 2>/dev/null; then
+            sudo overlayroot-chroot sh -c 'echo overlayroot=\"tmpfs\" >> /etc/overlayroot.conf'
+        else
+            sudo apt-get install -y overlayroot > /dev/null
+            sudo sh -c 'echo overlayroot=\"tmpfs\" >> /etc/overlayroot.conf'
+        fi
         echo "Overlay enabled. Reboot to activate: sudo reboot"
         ;;
       down)
