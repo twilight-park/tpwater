@@ -43,6 +43,10 @@ X-GNOME-Autostart-enabled=true
 EOF
     echo "autostart entry created"
 
+    # --- daily 3am reboot to clear RAM overlay ---
+    (crontab -l 2>/dev/null | grep -v '/sbin/reboot'; echo "0 3 * * * /sbin/reboot") | crontab -
+    echo "cron reboot at 3am configured"
+
     echo "Done. Reboot to start kiosk: sudo reboot"
     ;;
 
