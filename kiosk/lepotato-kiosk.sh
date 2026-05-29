@@ -38,10 +38,10 @@ EOF
 [Desktop Entry]
 Type=Application
 Name=Kiosk Chromium
-Exec=bash -c 'xset s off; xset -dpms; xset s noblank; unclutter -idle 1 & sleep 10; chromium --kiosk --noerrdialogs --disable-infobars --disable-translate --check-for-update-interval=31536000 $URL'
+Exec=bash -c 'xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-enabled -s false; xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/blank-on-ac -s 0; xset s off; xset -dpms; xset s noblank; unclutter -idle 1 & sleep 10; chromium --kiosk --noerrdialogs --disable-infobars --disable-translate --check-for-update-interval=31536000 $URL'
 X-GNOME-Autostart-enabled=true
 EOF
-    echo "autostart entry created"
+    echo "autostart entry created (screen blanking + power management disabled)"
 
     # --- daily 3am reboot to clear RAM overlay ---
     (crontab -l 2>/dev/null | grep -v '/sbin/reboot'; echo "0 3 * * * /sbin/reboot") | crontab -
