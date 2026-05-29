@@ -163,8 +163,7 @@ proc record { args } {
             log-error $e
         }
 
-        try { mesh::send_text 0xFFFFFFFF "rec [clock seconds] $values"
-        } on error e { log-error "mesh send: $e" }
+        mesh-send "rec [clock seconds] $values"
     } on error e { log-error record : $e }
 }
 
@@ -187,20 +186,47 @@ proc run { args } {
     }
 }
 
+# Mesh (LoRa) transport is optional. ::mesh_enabled is set true only while a
+# radio is open. If no radio is present at startup (after a few retries to
+# cover boot-time USB enumeration) the mesh code is left disabled and all
+# mesh sends become no-ops — a station with no radio runs purely on jbr::msg.
+set ::mesh_enabled 0
+set ::mesh_tries   0
+
 proc mesh-connect {} {
     # Resolve the radio via stable /dev/serial/by-id symlink, resilient to
     # /dev/ttyACMx renumbering across reboots and re-plugs.
     set dev [mesh::find_device]
     if { $dev eq "" } {
-        after 30000 mesh-connect
+        incr ::mesh_tries
+        if { $::mesh_tries <= 5 } {
+            after 30000 mesh-connect
+        } else {
+            log "no mesh radio found after $::mesh_tries tries — mesh disabled"
+        }
         return
     }
     mesh::close
     try {
         mesh::open $dev mesh-recv
+        set ::mesh_enabled 1
+        set ::mesh_tries   0
         log mesh connected on $dev
     } on error e {
         log-error "mesh-connect: $e"
+        set ::mesh_enabled 0
+        after 30000 mesh-connect
+    }
+}
+
+# Broadcast a text payload over mesh, if a radio is connected.
+proc mesh-send { text } {
+    if { !$::mesh_enabled } return
+    try {
+        mesh::send_text 0xFFFFFFFF $text
+    } on error e {
+        log-error "mesh send: $e"
+        set ::mesh_enabled 0
         after 30000 mesh-connect
     }
 }
@@ -208,11 +234,16 @@ proc mesh-connect {} {
 proc mesh-recv { pkt } {
     if { [dict exists $pkt event] } {
         log-error "mesh disconnected"
+        set ::mesh_enabled 0
         after 30000 mesh-connect
         return
     }
+    # Only TEXT_MESSAGE_APP (portnum 1) carries our name/value payloads. Skip
+    # telemetry/position/nodeinfo and other nodes' broadcasts.
+    if { [dict get $pkt portnum] != 1 } return
     try {
         set text [encoding convertfrom utf-8 [dict get $pkt payload]]
+        if { $text eq "" } return
         if { [llength $text] % 2 != 0 } {
             log-error "mesh-recv: odd-length payload, discarding"
             return
@@ -266,8 +297,7 @@ proc sim-status {} {
         log sim status {*}$values
         msg_cmd WATER "radio [clock seconds] $values" 0 nowait
 
-        try { mesh::send_text 0xFFFFFFFF "radio [clock seconds] $values"
-        } on error e { log-error "mesh send: $e" }
+        mesh-send "radio [clock seconds] $values"
     } on error e {
         log-error $e
     }
