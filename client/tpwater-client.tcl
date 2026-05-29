@@ -188,14 +188,17 @@ proc run { args } {
 }
 
 proc mesh-connect {} {
-    if { ![file exists /dev/ttyACM0] } {
+    # Resolve the radio via stable /dev/serial/by-id symlink, resilient to
+    # /dev/ttyACMx renumbering across reboots and re-plugs.
+    set dev [mesh::find_device]
+    if { $dev eq "" } {
         after 30000 mesh-connect
         return
     }
     mesh::close
     try {
-        mesh::open /dev/ttyACM0 mesh-recv
-        log mesh connected
+        mesh::open $dev mesh-recv
+        log mesh connected on $dev
     } on error e {
         log-error "mesh-connect: $e"
         after 30000 mesh-connect
