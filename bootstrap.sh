@@ -119,8 +119,11 @@ case $CMD in
     update-software)
         git config --global core.sshCommand "ssh -i ~/.ssh/twilight-park -F /dev/null"
 
-        ( cd tpwater            
-          git pull 
+        ( cd tpwater
+          # Migrate cards still on rev2 to the production main branch.
+          git fetch origin
+          git checkout main
+          git pull
         )
         ( cd tpwater/pkg/jbr.tcl
           git pull 
