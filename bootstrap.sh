@@ -288,9 +288,9 @@ case $CMD in
         tpwater/tpwater.sh "$@"
         ;;
     tpwater)
-        git clone git@github.com:jbroll/tpwater.git
+        git clone git@github.com:twilight-park/tpwater.git
         ( cd tpwater
-          git checkout rev2
+          git checkout main
         )
         ;;
     jbr)

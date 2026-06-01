@@ -119,9 +119,9 @@ sudo apt install tcl-dev tcllib tcl8.6-tdbc-sqlite3 i2c-tools
 
 3. Clone the repository:
 ```bash
-git clone git@github.com:jbroll/tpwater.git
+git clone git@github.com:twilight-park/tpwater.git
 cd tpwater
-git checkout rev2
+git checkout main
 ```
 
 4. Generate an API key for the station:
