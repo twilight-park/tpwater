@@ -12,6 +12,19 @@ source $script_dir/../pkg/wapp/wapp-static.tcl
 source $script_dir/../share/lib/html-lib.tcl
 source $script_dir/../share/lib/page-lib.tcl
 
+proc remote-addr {} {
+    # Behind the Apache reverse proxy, REMOTE_ADDR is the proxy's loopback
+    # address (::1). mod_proxy_http forwards the real client IP in
+    # X-Forwarded-For (wapp stores unknown headers as .hdr:<UPPERCASE>).
+    # The header is a comma list "client, proxy1, ..."; the leftmost entry
+    # is the originating client.
+    set fwd [wapp-param .hdr:X-FORWARDED-FOR]
+    if { $fwd ne "" } {
+        return [string trim [lindex [split $fwd ,] 0]]
+    }
+    return [wapp-param REMOTE_ADDR]
+}
+
 proc host-alias { device host } {
     set alias ""
 
@@ -114,7 +127,7 @@ wapp-route GET /query/table/start/end {
                 wapp [json::encode [list { array array number } [list [list $start null null] {*}[$result allrows -as lists] [list $end null null]]]]
             }
         }
-        set remote [wapp-param REMOTE_ADDR]
+        set remote [remote-addr]
         set device [wapp-param device]
 
         dict set ::queries "$remote-$device" [list [clock seconds] $remote $device [host-alias $device $remote]]
