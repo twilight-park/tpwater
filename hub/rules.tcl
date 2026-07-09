@@ -38,6 +38,8 @@ cron { Mon at 10:05 } {
 
 cron { every 2m at 15s } {
     try-rule LOWTANK {
+        log LowTank tank $::tank < 95?
+
         if { $::tank < 95 } {
             notify LOWTANK level $::tank
         }

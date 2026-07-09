@@ -34,11 +34,24 @@ proc notify { type args } {
     }
 }
 
+proc during-working-hours { start end } {
+    set now [clock seconds]
+    set day [clock format $now -format %u]
+    set hour [scan [clock format $now -format %H] %d]
+    expr { $day >= 1 && $day <= 5 && $hour >= $start && $hour < $end }
+}
+
 proc try-rule { name action } {
     try {
         upvar #0 $name enabled
 
         if { $enabled } {
+            if { [dict exists $::notifications $name hours] } {
+                lassign [dict get $::notifications $name hours] start end
+                if { ![during-working-hours $start $end] } {
+                    return
+                }
+            }
             uplevel $action
         }
     } on error msg {

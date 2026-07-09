@@ -1,0 +1,133 @@
+#!/usr/bin/env tclsh
+package require tcltest
+namespace import tcltest::*
+
+# --- mock: clock seconds -------------------------------------------------------
+rename clock _real_clock
+proc clock { args } {
+    if { [lindex $args 0] eq "seconds" } { return $::mock_time }
+    _real_clock {*}$args
+}
+
+# --- procs under test (copied from notify.tcl) ---------------------------------
+
+proc during-working-hours { start end } {
+    set now [clock seconds]
+    set day [clock format $now -format %u]
+    set hour [scan [clock format $now -format %H] %d]
+    expr { $day >= 1 && $day <= 5 && $hour >= $start && $hour < $end }
+}
+
+proc try-rule { name action } {
+    try {
+        upvar #0 $name enabled
+
+        if { $enabled } {
+            if { [dict exists $::notifications $name hours] } {
+                lassign [dict get $::notifications $name hours] start end
+                if { ![during-working-hours $start $end] } {
+                    return
+                }
+            }
+            uplevel $action
+        }
+    } on error msg {
+        log RULE Error: $name $msg
+    }
+}
+
+proc log { args } {}
+
+# --- helpers -------------------------------------------------------------------
+
+proc set-time { day hour minute } {
+    set ref 1783224000
+    set ref_dow 7
+    set diff [expr { ($day - $ref_dow) % 7 }]
+    set secs [expr { $ref + $diff * 86400 + $hour * 3600 + $minute * 60 }]
+    set ::mock_time $secs
+    return $secs
+}
+
+# ==============================================================================
+# during-working-hours
+# ==============================================================================
+
+test during-hours-midweek-midday {returns 1 for Tue 11am} {
+    set-time 2 11 0
+    during-working-hours 9 17
+} {1}
+
+test during-hours-midweek-after-hours {returns 0 for Tue 6pm} {
+    set-time 2 18 0
+    during-working-hours 9 17
+} {0}
+
+test during-hours-midweek-before-hours {returns 0 for Tue 7am} {
+    set-time 2 7 0
+    during-working-hours 9 17
+} {0}
+
+test during-hours-midweek-boundary-start {returns 1 for Tue 9am} {
+    set-time 2 9 0
+    during-working-hours 9 17
+} {1}
+
+test during-hours-midweek-boundary-end {returns 0 for Tue 5pm} {
+    set-time 2 17 0
+    during-working-hours 9 17
+} {0}
+
+test during-hours-saturday {returns 0 for Sat 12pm} {
+    set-time 6 12 0
+    during-working-hours 9 17
+} {0}
+
+test during-hours-sunday {returns 0 for Sun 12pm} {
+    set-time 7 12 0
+    during-working-hours 9 17
+} {0}
+
+# ==============================================================================
+# try-rule hours check
+# ==============================================================================
+
+test try-rule-hours-respected {skips action when outside working hours} {
+    set-time 2 18 0
+    set ::LOWTANK yes
+    set ::notifications [dict create LOWTANK [dict create hours {9 17}]]
+    set fired no
+    try-rule LOWTANK { set fired yes }
+    set fired
+} {no}
+
+test try-rule-hours-allowed {runs action when inside working hours} {
+    set-time 2 11 0
+    set ::LOWTANK yes
+    set ::notifications [dict create LOWTANK [dict create hours {9 17}]]
+    set fired no
+    try-rule LOWTANK { set fired yes }
+    set fired
+} {yes}
+
+test try-rule-no-hours {runs action when no hours configured} {
+    set-time 2 18 0
+    set ::NOTEST yes
+    set ::notifications [dict create NOTEST {}]
+    set fired no
+    try-rule NOTEST { set fired yes }
+    set fired
+} {yes}
+
+test try-rule-disabled {skips action when rule is disabled} {
+    set-time 2 11 0
+    set ::SILENT no
+    set ::notifications [dict create SILENT [dict create hours {9 17}]]
+    set fired no
+    try-rule SILENT { set fired yes }
+    set fired
+} {no}
+
+# ==============================================================================
+
+cleanupTests
