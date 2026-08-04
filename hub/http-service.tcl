@@ -127,6 +127,14 @@ wapp-route GET /query/table/start/end {
 
 wapp-static $::script_dir/../share/static ui nobrowse
 
+wapp-route GET /public {
+    set ::public true
+    wapp-mimetype text/html
+    wapp-cache-control no-cache
+    wapp-content-security-policy off
+    wapp [T subst [html-read monitor]]
+}
+
 wapp-route GET /press {
     html-page press text/html {
         set button [wapp-param button]

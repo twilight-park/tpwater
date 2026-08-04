@@ -92,7 +92,7 @@
     window.loadPage = loadPage;
     window.logout = logout;
     window.updatePage = updatePage;
-    window.press = press;
+    [? $::public {} else { window.press = press; }]
   </script>
 </head>
 
@@ -120,9 +120,15 @@
     <div class="hdr"> <h1 class="chartTitle">Tank Level<span id=tankLast>Tank</span></h1></div>
     <div><br></div>
     <div class=buttons>
+      [? $::public {
+        <div class="buthdr"> <h1><span id="auto">Auto</span></h1></div>
+        <div class="buthdr"> <h1><span id="golf">Golf Course</span></h1></div>
+        <div class="buthdr"> <h1><span id="thrd">Third Level</span></h1></div>
+      } else {
         <div class="buthdr"> <h1><button id="auto" onClick="press('auto')">Auto</button></h1></div>
         <div class="buthdr"> <h1><button id="golf" onClick="press('golf')">Golf Course</button></h1></div>
         <div class="buthdr"> <h1><button id="thrd" onClick="press('thrd')">Third Level</button></h1></div>
+      }]
     </div>
 </body>
 </html>

@@ -16,21 +16,26 @@ wapp-route GET /logout   {
 }
 
 wapp-route GET /values {
-    html-page values application/json {
-        set page [wapp-param page]
+    wapp-mimetype application/json
+    wapp-cache-control no-cache
 
-        set remote [wapp-param REMOTE_ADDR]
-        set device [wapp-param device]
+    set page [wapp-param page]
 
-        dict set ::queries "$remote-$device" [list [clock seconds] $remote $device [host-alias $device $remote]]
+    set remote [wapp-param REMOTE_ADDR]
+    set device [wapp-param device]
 
-        wapp [template:subst { {
-            [: name $!::names { "$!name": [!get? ::$!name], } ]
-            "date": [!clock seconds],
-            "page": [!get? ::$!page:md5sum]
-        } }]
+    dict set ::queries "$remote-$device" [list [clock seconds] $remote $device [host-alias $device $remote]]
 
-    }
+    wapp [template:subst { {
+        [: name $!::names { "$!name": [!get? ::$!name], } ]
+        "date": [!clock seconds],
+        "page": [!get? ::$!page:md5sum]
+    } }]
+
+}
+
+proc wapp-before-dispatch-hook {} {
+    set ::public false
 }
 
 proc wapp-default {} {
