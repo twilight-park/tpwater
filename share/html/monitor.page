@@ -149,7 +149,7 @@
         updatePage();
         updateCharts();
 
-        [< hamburger-config]
+        [? $::public {} else { [< hamburger-config] }]
     }
 
     function logout() {
@@ -182,13 +182,13 @@
         <span class=rite>
             Look Back&nbsp; 
             <select name="lookback" id="lookback" onChange="updateCharts();">
-                  <option value="1h">Hour</option>
-                  <option value="1d" selected>Day</option>
+                  <option value="1h" [? $::public {selected} else {}]>Hour</option>
+                  <option value="1d" [? $::public {} else {selected}]>Day</option>
                   <option value="1w">Week</option>
                   <option value="1t">Month</option>
             </select>
             &nbsp
-            [< hamburger]
+            [? $::public {} else { [< hamburger] }]
         </span>
     </div>
     <br>
